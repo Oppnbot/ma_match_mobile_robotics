@@ -1,0 +1,4 @@
+<launch>
+  <!-- Start print_node -->
+  <node name="drive" pkg="formation_builder" type="drive.py" output="screen" />
+</launch>
