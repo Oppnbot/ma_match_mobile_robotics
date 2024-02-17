@@ -2,16 +2,14 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseActionGoal
 import actionlib
 from typing import List, Tuple
 from geometry_msgs.msg import Twist, PoseStamped, Point, Quaternion
+import mbf_msgs.msg as mbf_msgs
 
-def move_to_goal_deprecated(x, y) -> bool:
-    client = actionlib.SimpleActionClient('mir1/move_base_simple_relay', MoveBaseAction)
-    client.wait_for_server()
 
-    goal = MoveBaseGoal()
+def move_to_pos(x, y) -> bool:
+    goal  : mbf_msgs.MoveBaseGoal = mbf_msgs.MoveBaseGoal()
     goal.target_pose.header.frame_id = "map"
     goal.target_pose.header.stamp = rospy.Time.now()
     goal.target_pose.pose.position.x = x
@@ -30,23 +28,18 @@ def move_to_goal_deprecated(x, y) -> bool:
 
 
 
-def move_to_goal(x, y) -> bool:
-    publisher = rospy.Publisher('/mir1/move_base_simple/goal', PoseStamped, queue_size=10)
-    pose = PoseStamped()
-    pose.header.stamp = rospy.Time.now()
-    pose.header.frame_id = 'map'
-    pose.pose.position = Point(x, y, 0.0)
-    pose.pose.orientation = Quaternion(0.0, 0.0, 0.0, 1.0)
-    publisher.publish(pose)
-    return False
-
-
 
 
 if __name__== '__main__':
     rospy.loginfo("INITIALIZING DRIVE NODE")
     rospy.init_node('ma_nav')
-    rate = rospy.Rate(0.05) # Hz
+    rate = rospy.Rate(10) # Hz
+
+    rospy.loginfo("Setting up Action Client")
+    client = actionlib.SimpleActionClient("/mir1/move_base_flex/move_base", mbf_msgs.MoveBaseAction)
+    rospy.loginfo("Waiting for Server....")
+    client.wait_for_server()
+    rospy.loginfo("Connected.")
     
     positions: List[Tuple[float, float]] = [(28, 16), (34, 15), (35, 21), (28, 23)]
 
@@ -55,7 +48,7 @@ if __name__== '__main__':
             rate.sleep()
             rospy.loginfo("i am running")
             rospy.loginfo(f"driving to {pos[0]}/{pos[1]}")
-            goal_reached : bool = move_to_goal(pos[0], pos[1])
+            goal_reached : bool = move_to_pos(pos[0], pos[1])
             if goal_reached:
                 rospy.loginfo(f"reached goal {pos}")
     rospy.loginfo("DRIVE NODE DONE!")
