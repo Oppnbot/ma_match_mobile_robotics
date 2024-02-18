@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+#! this requires grid map package from https://github.com/ethz-asl/grid_map
+
+from pyclbr import Class
 import rospy
 from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import MapMetaData
 import numpy as np
 import cv2
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+import random
+from visualization_msgs.msg import Marker
+
 
 def map_callback(data):
 
@@ -31,6 +38,11 @@ def map_callback(data):
     image_msg = bridge.cv2_to_imgmsg(resized_image, encoding="mono8")
 
     image_pub.publish(image_msg)
+
+
+
+
+
     rospy.loginfo("Done")
     #cv2.imshow("map", resized_image)
     #cv2.waitKey(0)
@@ -38,9 +50,12 @@ def map_callback(data):
 
 
 
+
+
+
 if __name__ == '__main__':
     image_pub = rospy.Publisher('/my_grid_img', Image, queue_size=10)
+    grid_pub = rospy.Publisher('/my_grid_grid', Marker, queue_size=10)
     rospy.init_node('map_display_node')
     rospy.Subscriber('/map', OccupancyGrid, map_callback)
     rospy.spin()
-
