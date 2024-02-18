@@ -17,7 +17,7 @@ from visualization_msgs.msg import Marker
 
 class FormationBuilder:
     resolution : float = 1.0 # [m] per grid cell
-    
+    show_debug_images : bool = True
 
     def __init__(self) -> None:
         self.input_map: OccupancyGrid | None = None
@@ -41,40 +41,29 @@ class FormationBuilder:
 
     
     def build_occupancy_grid(self, map_data : OccupancyGrid) -> None:
-        scaling_factor : float = map_data.info.resolution / self.resolution
-
-        map_array : np.ndarray = np.array(map_data.data).reshape((map_data.info.height, map_data.info.width))
-        map_array = (255 * (1 - map_array / 100)).astype(np.uint8)
-        
-        #cv_image = cv2.cvtColor(map_array, cv2.COLOR_GRAY2BGR)
-
-        grid_width : int = int(np.round(map_data.info.width * scaling_factor))
-        grid_height : int = int(np.round(map_data.info.height * scaling_factor))
-
-        scaled_image = cv2.resize(map_array, (grid_width, grid_height))
-
-        rate = rospy.Rate(1) # we somehow need this to update an image. #! dont remove
-        rate.sleep()
-
-        rospy.loginfo(f"Resized Image to a grid size of {self.resolution}cells/m:\n  new width:\t{grid_width}\n  new height:\t{grid_height}")
-        
-        self.publish_image(self.image_pub, scaled_image)
-
-
         rospy.loginfo("------------ Done ------------")
         return None
     
-    
 
-    def publish_image(self, publisher : rospy.Publisher, matrix : np.ndarray) -> None:
+
+    def publish_image(self, topic_name : str, matrix : np.ndarray) -> None:
+        img_publisher : rospy.Publisher = rospy.Publisher('/formation_builder/'+topic_name, Image, queue_size=10)
         ros_image : Image = self.cvbridge.cv2_to_imgmsg(matrix, encoding="mono8")
-        publisher.publish(ros_image)
-        rospy.loginfo("updated image...")
+        img_publisher.publish(ros_image)
+        rospy.loginfo(f"updated image on topic: {topic_name}...")
         return None
     
+    def show_image(self, img, name: str) -> None:
+        if self.show_debug_images:
+            target_size = (500, 500)  # Festlegen der Zielgröße für die Bilder
+            resized_img = cv2.resize(img, target_size)#, interpolation=cv2.INTER_AREA)  # Skalieren des Bildes auf die Zielgröße
+            cv2.imshow(name, resized_img)
+            cv2.waitKey(0)
+        return None
+
         
 
 if __name__ == '__main__':
     fb : FormationBuilder = FormationBuilder()
-    rospy.init_node('formation_builder')
+    rospy.init_node('map_reader')
     rospy.spin()
