@@ -38,7 +38,7 @@ class WavefrontExpansionNode:
         #start_position : tuple[int, int] = (45, 25)
         #goal_position : tuple[int, int] = (120, 120)
 
-        start_position : tuple[int, int] = (15, 20)
+        start_position : tuple[int, int] = (25, 12)
         goal_position : tuple[int, int] = (47, 17)
 
         path = self.wavefront_expansion(grid, start_position, goal_position)
@@ -70,7 +70,7 @@ class WavefrontExpansionNode:
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
         neighbors: list[tuple[int, int]] = direct_neighbors + diagonal_neighbors
 
-        timings : np.ndarray = np.zeros((rows, cols))
+        timings : np.ndarray = np.zeros((rows, cols))-1
         iterations : int = 0
 
         timings[start_pos[0], start_pos[1]] = 0.01 #? is this necessary?
@@ -82,14 +82,14 @@ class WavefrontExpansionNode:
                 break
 
             iterations += 1
-            current_element = queue.pop()
+            current_element = queue.pop(0)
 
             
-            if iterations % 1 == 0:
-                self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
-                rate = rospy.Rate(1)
-                rate.sleep()
+            if iterations % 100 == 0:
                 rospy.loginfo(f"{iterations} done!")
+
+            if False:
+                self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
 
             if iterations > 500000:
                 rospy.loginfo("breaking because algorithm reached max iterations")
@@ -107,7 +107,7 @@ class WavefrontExpansionNode:
                 if 0 <= x < rows and 0 <= y < cols and static_obstacles[x][y] != 0:# and (x, y) not in visited:
                     driving_cost : float = current_cost + (1 if abs(x_neighbor+y_neighbor) == 1 else 1.41421366)
                     #rospy.loginfo(f"driving cost{driving_cost}, current_cost {timings[x,y]} ")
-                    if driving_cost < timings[x, y] or timings[x,y] == 0:
+                    if driving_cost < timings[x, y] or timings[x,y] < 0:
                         timings[x,y] = driving_cost
                         queue.append((x, y))
         rospy.loginfo(f"stopped after a total of {iterations} iterations")
@@ -119,12 +119,44 @@ class WavefrontExpansionNode:
         elapsed_time = end_time - start_time
         rospy.loginfo(f"It took {elapsed_time} s.")
 
-        print_list = timings.tolist()
-        rospy.loginfo(print_list)
+        #print_list = timings.tolist()
+        #rospy.loginfo(print_list)
         
-        rospy.loginfo(f"final map\n{timings}")
-        self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
+        #rospy.loginfo(f"final map\n{timings}")
+
+        path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
+        rospy.loginfo(f"shortest path consists of {len(path)} nodes")
+        self.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
         return None
+    
+    def find_path(self, timings: np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
+        rospy.loginfo("searching for the shortest path...")
+        path : list[tuple[int, int]] = []
+        next_pos : tuple[int, int] = goal_pos
+
+        direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
+        neighbors: list[tuple[int, int]] = direct_neighbors + diagonal_neighbors
+
+        rows = len(timings)
+        cols = len(timings[0])
+
+        while next_pos != start_pos:
+            lowest_timing : float = float('inf')
+            lowest_neigbor: tuple[int, int]
+
+            for x_neighbor, y_neighbor in neighbors:
+                x, y = next_pos[0] + x_neighbor, next_pos[1] + y_neighbor
+                if 0 <= x < rows and 0 <= y < cols and -1 < timings[x, y] < lowest_timing:
+                    lowest_timing = timings[x, y]
+                    lowest_neigbor = (x, y)
+            if lowest_timing == float('inf'):
+                rospy.logwarn("there is no path")
+                break
+            next_pos = lowest_neigbor
+            path.append(lowest_neigbor)
+        return path
+
     
 
     def get_time_cost(self, current_time: float, index:int) -> float:
@@ -132,7 +164,7 @@ class WavefrontExpansionNode:
         return current_time + driving_cost
 
 
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -> None:
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], path:list[tuple[int, int]]=[]) -> None:
         min_val = np.min(grid)
         max_val  = np.max(grid)
         image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
@@ -140,19 +172,28 @@ class WavefrontExpansionNode:
             for j in range(grid.shape[1]):
                 val = grid[i, j]
                 if obstacles[i][j] == 0:
-                    image_matrix[i, j] = (0, 0, 0)  # Schwarz für -1
-                elif val == 0:
-                    image_matrix[i, j] = (255, 255, 255)  # Weiß für 0
+                    image_matrix[i, j] = (0, 0, 0)  # black for obstacles
+                elif val == -1:
+                    image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
                 else:
                     blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
-                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # Blau, wobei niedrigere Werte heller sind
+                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
+        
+        # path:
+        for point in path:
+            image_matrix[point[0], point[1]] = (0, 125 , 0)
+
+
+        # start and goal:
         image_matrix[goal[0], goal[1]] = (255, 0, 0)
         image_matrix[start[0], start[1]] = (0, 255, 0)
 
         image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
-        rospy.loginfo("publishing an image! :D")
+        rospy.loginfo("published a new image")
         self.timing_pub.publish(image_msg)
         return None
+    
+
 
     
 
