@@ -16,7 +16,7 @@ from visualization_msgs.msg import Marker
 
 
 class MapReader:
-    resolution : float = 1.0 # [m] per grid cell
+    resolution : float = 1.4 # [m] per grid cell
     show_debug_images : bool = False
     show_debug_prints : bool = True
 
@@ -79,7 +79,26 @@ class MapReader:
         if self.show_debug_prints:
             rospy.loginfo(f"Resized Image to a grid size of {self.resolution}cells/m:\n  new width:\t{grid_width}\n  new height:\t{grid_height}")
         
-        self.publish_image("map", thresh_image)
+        #* WALL RECONSTRUATION
+        # Opening with different kernels to disallow walls that are only being connected by a 4er neighborhood
+
+        #* Erosion
+        kernel = np.array(
+            [[1, 1, 1],
+             [1, 1, 1],
+             [1, 1, 1]], dtype = np.uint8)
+        eroded_result = cv2.erode(thresh_image, kernel)
+
+        #* Dilation
+        kernel = np.array(
+            [[0, 1, 0],
+             [1, 1, 1],
+             [0, 1, 0]], dtype = np.uint8)
+        dilated_result = cv2.dilate(eroded_result, kernel)
+        self.show_image(dilated_result, "Opening")
+
+
+        self.publish_image("map", dilated_result)
         return None
     
 
