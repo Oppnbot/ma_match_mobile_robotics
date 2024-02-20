@@ -25,6 +25,9 @@ class WavefrontExpansionNode:
         self.cv_bridge = CvBridge()
         self.point_size : int = 2
 
+        self.live_vizualisation : bool = True
+        self.allow_diagonals : bool = False
+
         self.occupied_from : np.ndarray | None = None
         self.occupied_until: np.ndarray | None = None
 
@@ -38,8 +41,12 @@ class WavefrontExpansionNode:
         #start_position : tuple[int, int] = (45, 25)
         #goal_position : tuple[int, int] = (120, 120)
 
+        # for
+        #start_position : tuple[int, int] = (25, 12)
+        #goal_position : tuple[int, int] = (47, 17)
+
         start_position : tuple[int, int] = (25, 12)
-        goal_position : tuple[int, int] = (47, 17)
+        goal_position : tuple[int, int] = (48, 37)
 
         path = self.wavefront_expansion(grid, start_position, goal_position)
 
@@ -68,7 +75,9 @@ class WavefrontExpansionNode:
         visited = set()
         direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
-        neighbors: list[tuple[int, int]] = direct_neighbors + diagonal_neighbors
+        neighbors: list[tuple[int, int]] = direct_neighbors
+        if self.allow_diagonals:
+            neighbors += diagonal_neighbors
 
         timings : np.ndarray = np.zeros((rows, cols))-1
         iterations : int = 0
@@ -88,7 +97,7 @@ class WavefrontExpansionNode:
             if iterations % 100 == 0:
                 rospy.loginfo(f"{iterations} done!")
 
-            if False:
+            if self.live_vizualisation:
                 self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
 
             if iterations > 500000:
@@ -124,24 +133,29 @@ class WavefrontExpansionNode:
         
         #rospy.loginfo(f"final map\n{timings}")
 
-        path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
+        path: list[tuple[int, int]] = self.find_path(timings, static_obstacles, start_pos, goal_pos)
         rospy.loginfo(f"shortest path consists of {len(path)} nodes")
         self.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
         return None
     
-    def find_path(self, timings: np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
+    def find_path(self, timings: np.ndarray, static_obstacles:np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
         rospy.loginfo("searching for the shortest path...")
         path : list[tuple[int, int]] = []
         next_pos : tuple[int, int] = goal_pos
 
         direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
-        neighbors: list[tuple[int, int]] = direct_neighbors + diagonal_neighbors
+        neighbors: list[tuple[int, int]] = direct_neighbors
+        if True or self.allow_diagonals:
+            neighbors += diagonal_neighbors
 
         rows = len(timings)
         cols = len(timings[0])
 
+
         while next_pos != start_pos:
+            if self.live_vizualisation:
+                self.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
             lowest_timing : float = float('inf')
             lowest_neigbor: tuple[int, int]
 
@@ -151,9 +165,14 @@ class WavefrontExpansionNode:
                     lowest_timing = timings[x, y]
                     lowest_neigbor = (x, y)
             if lowest_timing == float('inf'):
-                rospy.logwarn("there is no path")
+                # This error means that goal may be unreachable. should not occur if wavefront generation succeeded
+                rospy.logwarn("pathfinding failed! there is no valid neighbor")
                 break
             next_pos = lowest_neigbor
+            if lowest_neigbor in path:
+                # This error may occur when using different neighborhood metrics in path finding and wavefront generation
+                rospy.logwarn("pathfinding failed! Stuck in a dead end!")
+                break
             path.append(lowest_neigbor)
         return path
 
