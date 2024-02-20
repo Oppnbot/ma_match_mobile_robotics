@@ -59,6 +59,8 @@ class WavefrontExpansionNode:
         rospy.loginfo("Starting wavefront expansion")
         start_time = time.time()
 
+        queue = [start_pos]
+
         heap : list[tuple[float, tuple[int, int]]] = [(0, start_pos)]
         rows = len(static_obstacles)
         cols = len(static_obstacles[0])
@@ -71,19 +73,26 @@ class WavefrontExpansionNode:
         timings : np.ndarray = np.zeros((rows, cols))
         iterations : int = 0
 
+        timings[start_pos[0], start_pos[1]] = 0.01 #? is this necessary?
+
+        current_element : tuple[int, int]
         while heap:
+            if not queue:
+                rospy.loginfo("Queue ist empty!")
+                break
+
             iterations += 1
-            current_cost, current_element = heapq.heappop(heap)
-            if current_element in visited:
-                continue
+            current_element = queue.pop()
 
-            #visited.add(current_element)
-
-            if iterations % 10000 == 0:
+            
+            if iterations % 1 == 0:
+                self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
+                rate = rospy.Rate(1)
+                rate.sleep()
                 rospy.loginfo(f"{iterations} done!")
 
             if iterations > 500000:
-                rospy.loginfo("breaking cuz took too long")
+                rospy.loginfo("breaking because algorithm reached max iterations")
                 break
 
             if current_element == goal_pos:
@@ -91,19 +100,29 @@ class WavefrontExpansionNode:
                 break
 
             #cost_increase : float = 1
+            current_cost = timings[current_element[0], current_element[1]]
 
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_element[0] + x_neighbor, current_element[1] + y_neighbor
-                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x][y] != 0:# and (x, y) not in visited: 
-                    driving_cost : float = current_cost + 1 if (x_neighbor, y_neighbor) in direct_neighbors else 1.415
-                    if timings[x, y] == 0 or driving_cost < timings[x, y]:
-                        timings[x, y] = driving_cost
-                        heapq.heappush(heap, (driving_cost, (x, y)))
+                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x][y] != 0:# and (x, y) not in visited:
+                    driving_cost : float = current_cost + (1 if abs(x_neighbor+y_neighbor) == 1 else 1.41421366)
+                    #rospy.loginfo(f"driving cost{driving_cost}, current_cost {timings[x,y]} ")
+                    if driving_cost < timings[x, y] or timings[x,y] == 0:
+                        timings[x,y] = driving_cost
+                        queue.append((x, y))
+        rospy.loginfo(f"stopped after a total of {iterations} iterations")
+
+                    
 
         
         end_time = time.time()
         elapsed_time = end_time - start_time
         rospy.loginfo(f"It took {elapsed_time} s.")
+
+        print_list = timings.tolist()
+        rospy.loginfo(print_list)
+        
+        rospy.loginfo(f"final map\n{timings}")
         self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
         return None
     
@@ -133,6 +152,7 @@ class WavefrontExpansionNode:
         image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
         rospy.loginfo("publishing an image! :D")
         self.timing_pub.publish(image_msg)
+        return None
 
     
 
