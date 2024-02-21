@@ -27,7 +27,7 @@ class PathData():
 
 class Spawner:
     def __init__(self)->None:
-        self.path_finder_count : int = 5
+        self.path_finder_count : int = 3
 
         rospy.init_node('mapf')
         self.cv_bridge = CvBridge()
@@ -167,7 +167,7 @@ class WavefrontExpansionNode:
         self.cv_bridge = CvBridge()
         self.point_size : int = 2
 
-        self.allow_diagonals : bool = False
+        self.allow_diagonals : bool = True
 
         self.occupied_from : np.ndarray | None = None
         self.occupied_until: np.ndarray | None = None
@@ -195,7 +195,6 @@ class WavefrontExpansionNode:
             neighbors += diagonal_neighbors
 
         timings : np.ndarray = np.zeros((rows, cols))-1
-        timings[30,30] = 10
         iterations : int = 0
 
         timings[start_pos[0], start_pos[1]] = 0.01 #? is this necessary?
@@ -272,12 +271,12 @@ class WavefrontExpansionNode:
                     lowest_neigbor = (x, y)
             if lowest_timing == float('inf'):
                 # This error means that goal may be unreachable. should not occur if wavefront generation succeeded
-                rospy.logwarn(f"planner {self.id} pathfinding failed! there is no valid neighbor")
+                rospy.logerr(f"planner {self.id} pathfinding failed! there is no valid neighbor")
                 break
             next_pos = lowest_neigbor
             if lowest_neigbor in path:
                 # This error may occur when using different neighborhood metrics in path finding and wavefront generation
-                rospy.logwarn(f"planner {self.id} pathfinding failed! Stuck in a dead end!")
+                rospy.logerr(f"planner {self.id} pathfinding failed! Stuck in a dead end!")
                 break
             path.append(lowest_neigbor)
         return path
