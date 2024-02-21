@@ -16,9 +16,10 @@ import heapq
 import colorsys
 
 class PathData():
-    def __init__(self, planner_id:int, path:list[tuple[int, int]] = []):
+    def __init__(self, planner_id:int, timings:np.ndarray, path:list[tuple[int, int]] = []):
         self.planner_id : int = planner_id
         self.path : list[tuple[int, int]] = path
+        self.timings : np.ndarray = timings
         self.start: tuple[int, int]
         self.goal: tuple[int, int]
         if len(path) > 0:
@@ -35,8 +36,10 @@ class Spawner:
         self.path_finders : list[WavefrontExpansionNode] = []
 
 
-        self.starting_positions : list[tuple[int, int]] =   [(25, 12), (25, 16), (20, 16), (15, 30)]
-        self.goal_positions: list [tuple[int, int]] =       [(48, 37), (48, 39), (48, 50), (55, 20)]
+        self.starting_positions : list[tuple[int, int]] =   [(25, 12), (25, 16), (20, 20), (7, 30)]
+        self.goal_positions: list[tuple[int, int]] =       [(48, 37), (48, 39), (48, 50), (55, 20)]
+
+        self.occupation: dict[tuple[int, int], list[tuple[float, float]]] = {} #key: x- and y-val of the gridcell. value: list of timings with "occupied from" and "occupied until"
 
         for i in range(self.path_finder_count):
             self.path_finders.append(WavefrontExpansionNode(i))
@@ -47,6 +50,24 @@ class Spawner:
         return None
     
 
+    def init_occupation_dict(self, width:int, height : int) -> None:
+        for w in range(width):
+            for h in range(height):
+                self.occupation[(w, h)] = []
+        return None
+    
+
+    def update_occupation_dict(self, path_data: PathData) -> None:
+        #! this function is somewhat buggy since it blocks the starting pos instead of the goal pos. may want to reorder that list
+        for index, point in enumerate(path_data.path):
+            occ_from : float = path_data.timings[point[0], point[1]]
+            occ_until : float = float('inf')
+            if index < len(path_data.path)-1:
+                occ_until : float = path_data.timings[path_data.path[index+1][0], path_data.path[index+1][1]] + 2 #! might remove this +1
+            self.occupation[point].append((occ_from, occ_until))
+        return None
+    
+
     def map_callback(self, img_msg : Image) -> None:
         grid : np.ndarray = self.map_to_grid(img_msg)
         paths : list[PathData] = []
@@ -54,17 +75,25 @@ class Spawner:
         result_image : np.ndarray = self.clear_image(grid.shape[0], grid.shape[1])
         result_image = self.draw_obstacles(result_image, grid)
 
+        self.init_occupation_dict(grid.shape[0], grid.shape[1])
+        start_time = start_time = time.time()
+
         for index, path_finder in enumerate(self.path_finders):
             if index >= len(self.starting_positions) or index >= len(self.goal_positions):
                 rospy.logwarn("there are not enough starting/goal positions for the chosen ammount of planners.")
                 break
-            path : PathData = path_finder.wavefront_expansion(grid, self.starting_positions[index], self.goal_positions[index])
+            path : PathData = path_finder.wavefront_expansion(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
             paths.append(path)
+
+            self.update_occupation_dict(path)
+
             result_image = self.draw_path(result_image, path)
             result_image = self.draw_start_and_goal(result_image, path)
             self.publish_image_matrix(result_image)
 
-        rospy.loginfo("------------------ Done! ------------------ ")
+        end_time = time.time()
+
+        rospy.loginfo(f"------------------ Done! ({end_time-start_time:.3f}s) ------------------ ")
         return None
 
 
@@ -129,34 +158,6 @@ class Spawner:
         r, g, b = np.uint8(r * 255), np.uint8(g * 255), np.uint8(b * 255)
         return (r, g, b)
 
-    #! DEPRECATED
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], path:list[tuple[int, int]]=[]) -> None:
-        rospy.logerr("draw timings is a deprecated function. please refactor your code")
-        min_val = np.min(grid)
-        max_val  = np.max(grid)
-        image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
-        for i in range(grid.shape[0]):
-            for j in range(grid.shape[1]):
-                val = grid[i, j]
-                if obstacles[i][j] == 0:
-                    image_matrix[i, j] = (0, 0, 0)  # black for obstacles
-                elif val == -1:
-                    image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
-                else:
-                    blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
-                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
-        # path:
-        for point in path:
-            image_matrix[point[0], point[1]] = (0, 125 , 0)
-        # start and goal:
-        image_matrix[goal[0], goal[1]] = (255, 0, 0)
-        image_matrix[start[0], start[1]] = (0, 255, 0)
-
-        image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
-        rospy.loginfo("published a new image")
-        #self.timing_pub.publish(image_msg)
-        return None
-
     
 
 
@@ -167,10 +168,10 @@ class WavefrontExpansionNode:
         self.cv_bridge = CvBridge()
         self.point_size : int = 2
 
-        self.allow_diagonals : bool = True
+        self.allow_diagonals : bool = False
+        self.check_dynamic_obstacles : bool = True
+        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
 
-        self.occupied_from : np.ndarray | None = None
-        self.occupied_until: np.ndarray | None = None
         return None
 
 
@@ -178,7 +179,7 @@ class WavefrontExpansionNode:
         grid : np.ndarray = np.array(img) // 255
         return grid.tolist()    
 
-    def wavefront_expansion(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int]) -> PathData:
+    def wavefront_expansion(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> PathData:
         rospy.loginfo(f"Planner {self.id} Starting wavefront expansion")
         start_time = time.time()
 
@@ -201,6 +202,9 @@ class WavefrontExpansionNode:
             iterations += 1
             current_cost, current_element = heapq.heappop(heap)
 
+            if self.dynamic_visualization:
+                self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
+
             if iterations % 1000 == 0:
                 rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
 
@@ -216,8 +220,21 @@ class WavefrontExpansionNode:
 
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_element[0] + x_neighbor, current_element[1] + y_neighbor
-                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0:
+                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
                     driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41421366)
+
+                    if self.check_dynamic_obstacles and occupation[(x,y)]: # check for dynamic obstacles
+                        is_occupied : bool = False
+                        occupation_list : list[tuple[float, float]] = occupation[(x,y)]
+                        for occ_from, occ_until in occupation_list:
+                            if occ_from <= driving_cost <= occ_until:
+                                #rospy.logwarn(f"robots {self.id} path crosses at ({x, y}) from after {driving_cost}. it is occupied between {occ_from} to {occ_until} ")
+                                heapq.heappush(heap, (occ_until, (x, y)))
+                                is_occupied = True
+                                break
+                        if is_occupied:
+                            continue
+                    # cell isnt occupied -> add it to heap
                     if driving_cost < timings[x, y] or timings[x, y] < 0:
                         timings[x, y] = driving_cost
                         heapq.heappush(heap, (driving_cost, (x, y)))
@@ -225,14 +242,14 @@ class WavefrontExpansionNode:
         rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
         end_time = time.time()
         elapsed_time = end_time - start_time
-        rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time}s.")
+        rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time:.3f}s.")
 
         path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
-        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes")
-
-        path_data: PathData = PathData(self.id, path)
+        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
+        path_data: PathData = PathData(self.id, timings, path)
         path_data.start = start_pos
         path_data.goal = goal_pos
+        self.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
         return path_data
 
 
@@ -246,13 +263,10 @@ class WavefrontExpansionNode:
         direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
         neighbors: list[tuple[int, int]] = direct_neighbors
-        if self.allow_diagonals:
+        if self.allow_diagonals or True:
             neighbors += diagonal_neighbors
-
         rows = len(timings)
         cols = len(timings[0])
-
-
         while next_pos != start_pos:
             lowest_timing : float = float('inf')
             lowest_neigbor: tuple[int, int]
@@ -273,6 +287,36 @@ class WavefrontExpansionNode:
                 break
             path.append(lowest_neigbor)
         return path
+    
+
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], path:list[tuple[int, int]]=[]) -> None:
+        #rospy.logerr("draw timings is a deprecated function. please refactor your code")
+        min_val = np.min(grid)
+        max_val  = np.max(grid)
+        image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
+        for i in range(grid.shape[0]):
+            for j in range(grid.shape[1]):
+                val = grid[i, j]
+                if obstacles[i][j] == 0:
+                    image_matrix[i, j] = (0, 0, 0)  # black for obstacles
+                elif val == -1:
+                    image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
+                else:
+                    blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
+                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
+        # path:
+        for point in path:
+            image_matrix[point[0], point[1]] = (0, 125 , 0)
+        # start and goal:
+        image_matrix[goal[0], goal[1]] = (255, 0, 0)
+        image_matrix[start[0], start[1]] = (0, 255, 0)
+
+        image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
+        #rospy.loginfo("published a new image")
+        timing_pub: rospy.Publisher = rospy.Publisher("/timing_image", Image, queue_size=1, latch=True)
+        timing_pub.publish(image_msg)
+        return None
+
 
 
 
