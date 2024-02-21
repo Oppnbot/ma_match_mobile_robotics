@@ -27,7 +27,7 @@ class PathData():
 
 class Spawner:
     def __init__(self)->None:
-        self.path_finder_count : int = 3
+        self.path_finder_count : int = 4
 
         rospy.init_node('mapf')
         self.cv_bridge = CvBridge()
@@ -178,39 +178,32 @@ class WavefrontExpansionNode:
         grid : np.ndarray = np.array(img) // 255
         return grid.tolist()    
 
-    def wavefront_expansion(self, static_obstacles:np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> PathData:
+    def wavefront_expansion(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int]) -> PathData:
         rospy.loginfo(f"Planner {self.id} Starting wavefront expansion")
         start_time = time.time()
 
-        queue = [start_pos]
+        heap: list[tuple[float, tuple[int, int]]] = [(0, start_pos)]
+        rows: int = static_obstacles.shape[0]
+        cols: int = static_obstacles.shape[1]
 
-        heap : list[tuple[float, tuple[int, int]]] = [(0, start_pos)]
-        rows : int = static_obstacles.shape[0]
-        cols : int = static_obstacles.shape[1]
-
-        direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        direct_neighbors: list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
         neighbors: list[tuple[int, int]] = direct_neighbors
         if self.allow_diagonals:
             neighbors += diagonal_neighbors
 
-        timings : np.ndarray = np.zeros((rows, cols))-1
-        iterations : int = 0
+        timings: np.ndarray = np.zeros((rows, cols)) - 1
+        iterations: int = 0
 
-        timings[start_pos[0], start_pos[1]] = 0.01 #? is this necessary?
+        timings[start_pos[0], start_pos[1]] = 0.0
 
-        current_element : tuple[int, int]
         while heap:
-            if not queue:
-                rospy.loginfo("Queue ist empty!")
-                break
-
             iterations += 1
-            current_element = queue.pop(0)
+            current_cost, current_element = heapq.heappop(heap)
 
-            
             if iterations % 1000 == 0:
                 rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
+
             if iterations > 500000:
                 rospy.logwarn(f"planner {self.id}: breaking because algorithm reached max iterations")
                 break
@@ -219,17 +212,16 @@ class WavefrontExpansionNode:
                 rospy.loginfo(f"planner {self.id}: Reached the goal after {iterations} iterations")
                 break
 
-            #cost_increase : float = 1
-            current_cost = timings[current_element[0], current_element[1]]
+            #current_cost = timings[current_element[0], current_element[1]]
 
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_element[0] + x_neighbor, current_element[1] + y_neighbor
-                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0:# and (x, y) not in visited:
-                    driving_cost : float = current_cost + (1 if abs(x_neighbor+y_neighbor) == 1 else 1.41421366)
-                    #rospy.loginfo(f"driving cost{driving_cost}, current_cost {timings[x,y]} ")
-                    if driving_cost < timings[x, y] or timings[x,y] < 0:
-                        timings[x,y] = driving_cost
-                        queue.append((x, y))
+                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0:
+                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41421366)
+                    if driving_cost < timings[x, y] or timings[x, y] < 0:
+                        timings[x, y] = driving_cost
+                        heapq.heappush(heap, (driving_cost, (x, y)))
+
         rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -238,10 +230,11 @@ class WavefrontExpansionNode:
         path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
         rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes")
 
-        path_data : PathData = PathData(self.id, path)
+        path_data: PathData = PathData(self.id, path)
         path_data.start = start_pos
         path_data.goal = goal_pos
         return path_data
+
 
 
     
