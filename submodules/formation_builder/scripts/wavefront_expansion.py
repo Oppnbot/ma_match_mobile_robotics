@@ -45,8 +45,8 @@ class WavefrontExpansionNode:
         #start_position : tuple[int, int] = (25, 12)
         #goal_position : tuple[int, int] = (47, 17)
 
-        start_position : tuple[int, int] = (25, 12)
-        goal_position : tuple[int, int] = (48, 37)
+        start_position : tuple[int, int] =(20, 16)
+        goal_position : tuple[int, int] = (48, 50)
 
         path = self.wavefront_expansion(grid, start_position, goal_position)
 
@@ -66,7 +66,7 @@ class WavefrontExpansionNode:
         rospy.loginfo("Starting wavefront expansion")
         start_time = time.time()
 
-        queue = [start_pos]
+        
 
         heap : list[tuple[float, tuple[int, int]]] = [(0, start_pos)]
         rows = len(static_obstacles)
@@ -80,6 +80,14 @@ class WavefrontExpansionNode:
             neighbors += diagonal_neighbors
 
         timings : np.ndarray = np.zeros((rows, cols))-1
+        
+        queue = [start_pos]
+
+        
+        #timings[30,30] = 10
+        #queue = [start_pos, (30, 30)]
+        
+        
         iterations : int = 0
 
         timings[start_pos[0], start_pos[1]] = 0.01 #? is this necessary?
@@ -146,7 +154,7 @@ class WavefrontExpansionNode:
         direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
         neighbors: list[tuple[int, int]] = direct_neighbors
-        if True or self.allow_diagonals:
+        if self.allow_diagonals:
             neighbors += diagonal_neighbors
 
         rows = len(timings)
@@ -166,12 +174,12 @@ class WavefrontExpansionNode:
                     lowest_neigbor = (x, y)
             if lowest_timing == float('inf'):
                 # This error means that goal may be unreachable. should not occur if wavefront generation succeeded
-                rospy.logwarn("pathfinding failed! there is no valid neighbor")
+                rospy.logerr("pathfinding failed! there is no valid neighbor")
                 break
             next_pos = lowest_neigbor
             if lowest_neigbor in path:
                 # This error may occur when using different neighborhood metrics in path finding and wavefront generation
-                rospy.logwarn("pathfinding failed! Stuck in a dead end!")
+                rospy.logerr("pathfinding failed! Stuck in a dead end!")
                 break
             path.append(lowest_neigbor)
         return path
