@@ -18,9 +18,9 @@
 
 from __future__ import annotations
 from operator import index
+from pty import spawn
 
 import rospy
-import cv2
 import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -28,39 +28,38 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 import time
 import heapq
-import colorsys
+from commons import PathData
+from visualization import fb_visualizer
+#from formation_builder.srv import transformation
+from formation_builder.srv import TransformPixelToWorld, TransformPixelToWorldRequest, TransformPixelToWorldResponse
 
-class PathData():
-    def __init__(self, planner_id:int, timings:np.ndarray, path:list[tuple[int, int]] = []):
-        self.planner_id : int = planner_id
-        self.path : list[tuple[int, int]] = path
-        self.timings : np.ndarray = timings
-        self.start: tuple[int, int]
-        self.goal: tuple[int, int]
-        if len(path) > 0:
-            self.start = path[-1]
-            self.goal = path[0]
 
 class Spawner:
     def __init__(self)->None:
+        # -------- CONFIG START --------
         self.path_finder_count : int = 4
+        #self.starting_positions : list[tuple[int, int]] =  [(1, 1), (3, 1), (5, 1), (7, 1)]
+        #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
+        
+        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (34, 25), (25, 20), (30, 45)]
+        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
 
+        # --------- CONFIG END ---------
         rospy.init_node('mapf')
-        self.cv_bridge = CvBridge()
+        
 
         self.path_finders : list[WavefrontExpansionNode] = []
-
-
-        self.starting_positions : list[tuple[int, int]] =   [(25, 12), (25, 16), (20, 20), (7, 30)]
-        self.goal_positions: list[tuple[int, int]] =       [(48, 37), (48, 39), (48, 50), (55, 20)]
-
+        self.cv_bridge : CvBridge = CvBridge()
         self.occupation: dict[tuple[int, int], list[tuple[float, float]]] = {} #key: x- and y-val of the gridcell. value: list of timings with "occupied from" and "occupied until"
-
         for i in range(self.path_finder_count):
             self.path_finders.append(WavefrontExpansionNode(i))
+        
 
+        rospy.loginfo("waiting for transformation service...")
+        rospy.wait_for_service('pixel_to_world')
+        rospy.loginfo("transformation service is running!")
+        
         rospy.Subscriber('/formation_builder/map', Image, self.map_callback)
-        self.image_pub = rospy.Publisher(f"/path_image", Image, queue_size=1, latch=True)
 
         return None
     
@@ -74,11 +73,11 @@ class Spawner:
 
     def update_occupation_dict(self, path_data: PathData) -> None:
         #! this function is somewhat buggy since it blocks the starting pos instead of the goal pos. may want to reorder that list
-        for index, point in enumerate(path_data.path):
+        for index, point in enumerate(path_data.path_pixel):
             occ_from : float = path_data.timings[point[0], point[1]]
             occ_until : float = float('inf')
-            if index < len(path_data.path)-1:
-                occ_until : float = path_data.timings[path_data.path[index+1][0], path_data.path[index+1][1]] + 1000 #! might remove this +1
+            if index < len(path_data.path_pixel)-1:
+                occ_until : float = path_data.timings[path_data.path_pixel[index+1][0], path_data.path_pixel[index+1][1]] + 1 #! might remove this +1
             self.occupation[point].append((occ_from, occ_until))
         return None
     
@@ -87,8 +86,8 @@ class Spawner:
         grid : np.ndarray = self.map_to_grid(img_msg)
         paths : list[PathData] = []
 
-        result_image : np.ndarray = self.clear_image(grid.shape[0], grid.shape[1])
-        result_image = self.draw_obstacles(result_image, grid)
+        fb_visualizer.clear_image(grid.shape[0], grid.shape[1])
+        fb_visualizer.draw_obstacles(grid)
 
         self.init_occupation_dict(grid.shape[0], grid.shape[1])
         start_time = start_time = time.time()
@@ -102,13 +101,13 @@ class Spawner:
 
             self.update_occupation_dict(path)
 
-            result_image = self.draw_path(result_image, path)
-            result_image = self.draw_start_and_goal(result_image, path)
-            self.publish_image_matrix(result_image)
-
+            fb_visualizer.draw_path(path, self.path_finder_count)
+            fb_visualizer.draw_start_and_goal(path, self.path_finder_count)
+            fb_visualizer.publish_image()
         end_time = time.time()
 
         rospy.loginfo(f"------------------ Done! ({end_time-start_time:.3f}s) ------------------ ")
+        fb_visualizer.show_live_path(paths)
         return None
 
 
@@ -117,62 +116,6 @@ class Spawner:
         img = self.cv_bridge.imgmsg_to_cv2(map, desired_encoding="mono8")
         grid : np.ndarray = np.array(img) // 255
         return grid
-    
-
-    def clear_image(self, width: int, height: int) -> np.ndarray:
-        image_matrix = np.ones((width, height, 3), dtype=np.uint8)*255 # white image as default
-        return image_matrix
-    
-
-    def draw_obstacles(self, image_matrix:np.ndarray, obstacles: np.ndarray) -> np.ndarray:
-        for i in range(image_matrix.shape[0]):
-            for j in range(image_matrix.shape[1]):
-                if obstacles[i, j] == 0:
-                    image_matrix[i, j] = (0, 0, 0)
-        return image_matrix
-
-
-    def draw_path(self, image_matrix:np.ndarray, path_data : PathData) -> np.ndarray:
-        color = self.generate_distinct_colors(self.path_finder_count, path_data.planner_id, value=0.5)
-        
-        for point in path_data.path:
-            current_val = image_matrix[point[0], point[1]]
-            if all(x == 0 or x == 255 for x in current_val):
-                image_matrix[point[0], point[1]] = color
-            else:
-                r,g,b = color
-                new_color = (current_val[0] + r//2, current_val[1] + g//2, current_val[2] + b//2)
-                image_matrix[point[0], point[1]] = new_color
-        return image_matrix
-    
-
-    def draw_start_and_goal(self, image_matrix:np.ndarray, path_data : PathData) -> np.ndarray:
-        color = self.generate_distinct_colors(self.path_finder_count, path_data.planner_id)
-        image_matrix[path_data.goal[0], path_data.goal[1]] = color
-        image_matrix[path_data.start[0], path_data.start[1]] = color
-        return image_matrix
-    
-
-    def publish_image_matrix(self, image_matrix:np.ndarray) -> None:
-        rospy.loginfo("publishing a new image")
-        image_cv = np.uint8(image_matrix)
-        image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_cv, encoding="rgb8")
-        #cv2.imshow("path", image_cv)
-        #cv2.waitKey(0)
-        self.image_pub.publish(image_msg)
-        return None
-    
-
-    def generate_distinct_colors(self, num_colors:int, index:int, saturation : float = 1.0, value: float = 1.0) -> tuple[np.uint8, np.uint8 ,np.uint8]:
-        # num colors: total number of colors
-        # index = id of the path or whatever
-        # saturation and value should be in a range from 0 to 1
-        hue_delta : float = 360.0 / num_colors
-        hue = (index * hue_delta) % 360
-        r, g, b = colorsys.hsv_to_rgb(hue / 360.0, saturation, value)
-        r, g, b = np.uint8(r * 255), np.uint8(g * 255), np.uint8(b * 255)
-        return (r, g, b)
-
     
 
 
@@ -218,7 +161,7 @@ class WavefrontExpansionNode:
             current_cost, current_element = heapq.heappop(heap)
 
             if self.dynamic_visualization:
-                self.draw_timings(timings, static_obstacles, start_pos, goal_pos)
+                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos)
 
             if iterations % 1000 == 0:
                 rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
@@ -264,12 +207,17 @@ class WavefrontExpansionNode:
         path_data: PathData = PathData(self.id, timings, path)
         path_data.start = start_pos
         path_data.goal = goal_pos
-        self.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
+        path_data.timings = timings
+
+        
+        transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
+        for point in path:
+            response : TransformPixelToWorldResponse = transform_pixel_to_world(point[0], point[1])
+            path_data.path_world.append((response.x_world, response.y_world))   
+        fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
         return path_data
 
 
-
-    
     def find_path(self, timings: np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
         rospy.loginfo(f"planner {self.id} searching for the shortest path...")
         path : list[tuple[int, int]] = []
@@ -303,38 +251,6 @@ class WavefrontExpansionNode:
             path.append(lowest_neigbor)
         return path
     
-
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], path:list[tuple[int, int]]=[]) -> None:
-        #rospy.logerr("draw timings is a deprecated function. please refactor your code")
-        min_val = np.min(grid)
-        max_val  = np.max(grid)
-        image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
-        for i in range(grid.shape[0]):
-            for j in range(grid.shape[1]):
-                val = grid[i, j]
-                if obstacles[i][j] == 0:
-                    image_matrix[i, j] = (0, 0, 0)  # black for obstacles
-                elif val == -1:
-                    image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
-                else:
-                    blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
-                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
-        # path:
-        for point in path:
-            image_matrix[point[0], point[1]] = (0, 125 , 0)
-        # start and goal:
-        image_matrix[goal[0], goal[1]] = (255, 0, 0)
-        image_matrix[start[0], start[1]] = (0, 255, 0)
-
-        image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
-        #rospy.loginfo("published a new image")
-        timing_pub: rospy.Publisher = rospy.Publisher("/timing_image", Image, queue_size=1, latch=True)
-        timing_pub.publish(image_msg)
-        return None
-
-
-
-
 
 if __name__ == '__main__':
     spawner : Spawner = Spawner()
