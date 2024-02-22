@@ -83,8 +83,8 @@ class WavefrontExpansionNode:
         
         queue = [start_pos]
 
-        
-        #timings[30,30] = 10
+
+        #timings[30,30] = 200
         #queue = [start_pos, (30, 30)]
         
         
@@ -113,6 +113,8 @@ class WavefrontExpansionNode:
                 break
 
             if current_element == goal_pos:
+                rospy.loginfo(f"Reached goal but queue is not empty")
+                continue
                 rospy.loginfo(f"Reached the goal after {iterations} iterations")
                 break
 

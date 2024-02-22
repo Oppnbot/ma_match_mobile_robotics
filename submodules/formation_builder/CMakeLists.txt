@@ -10,6 +10,8 @@ project(formation_builder)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
+  message_generation
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -52,6 +54,10 @@ find_package(catkin REQUIRED COMPONENTS
 #   Message2.msg
 # )
 
+add_message_files(
+  FILES
+)
+
 ## Generate services in the 'srv' folder
 # add_service_files(
 #   FILES
@@ -67,10 +73,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
