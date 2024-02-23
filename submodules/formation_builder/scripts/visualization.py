@@ -135,12 +135,17 @@ class Visualization():
         start_time : float = time.time()
         time_factor : float = 5.0 # used to speed up sim
 
-        last_goal_timestamp : float = float('inf')
+        last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
-            time_for_reaching_goal : float = trajectory.goal.occupied_from 
-            if time_for_reaching_goal > last_goal_timestamp:
+            if trajectory.goal.previousWaypoint is None:
+                continue
+            time_for_reaching_goal : float = trajectory.goal.previousWaypoint.occupied_until + 1
+            if time_for_reaching_goal < float('inf') and time_for_reaching_goal > last_goal_timestamp:
                 last_goal_timestamp = time_for_reaching_goal
-        time_for_reaching_goal += 10 # add an extra seconds
+
+        if last_goal_timestamp == float('inf') or last_goal_timestamp <= 0:
+            rospy.logwarn(f"Trying to simulate for {last_goal_timestamp} ammount of time; will stop after 120s instead.")
+            last_goal_timestamp = 120
 
         end_time : float = start_time + time_for_reaching_goal
         rospy.loginfo(f"live visualization starting, simulating {time_for_reaching_goal}s at a speed of {time_factor}...")
@@ -177,7 +182,9 @@ class Visualization():
                 marker.color.a = 0.7 # alpha value for transparancy
 
                 for waypoint in trajectory.waypoints:
-                    if waypoint.occupied_from < elapsed_time < waypoint.occuped_until:
+                    if waypoint.occupied_from < elapsed_time < waypoint.occupied_until:
+                        if waypoint.world_pos is None:
+                            continue
                         point : Point = Point()
                         point.x = waypoint.world_pos[0]
                         point.y = waypoint.world_pos[1]
