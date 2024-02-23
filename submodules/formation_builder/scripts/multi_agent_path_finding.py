@@ -27,9 +27,6 @@
 
 
 from __future__ import annotations
-from operator import index
-from pty import spawn
-
 import rospy
 import numpy as np
 from sensor_msgs.msg import Image
@@ -80,7 +77,7 @@ class Spawner:
                 self.occupation[(w, h)] = []
         return None
     
-
+    #!deprecated
     def update_occupation_dict(self, trajectory: TrajectoryData) -> None:
         for waypoint in trajectory.waypoints:
             self.occupation[waypoint.pixel_pos].append((waypoint.occupied_from, waypoint.occuped_until))
@@ -89,7 +86,7 @@ class Spawner:
 
     def map_callback(self, img_msg : Image) -> None:
         grid : np.ndarray = self.map_to_grid(img_msg)
-        paths : list[TrajectoryData] = []
+        trajectories : list[TrajectoryData] = []
 
         fb_visualizer.clear_image(grid.shape[0], grid.shape[1])
         fb_visualizer.draw_obstacles(grid)
@@ -101,10 +98,11 @@ class Spawner:
             if index >= len(self.starting_positions) or index >= len(self.goal_positions):
                 rospy.logwarn("there are not enough starting/goal positions for the chosen ammount of planners.")
                 break
-            trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
-            paths.append(trajectory)
+            trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], trajectories)
+            #trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
+            trajectories.append(trajectory)
 
-            self.update_occupation_dict(trajectory)
+            #self.update_occupation_dict(trajectory)
 
             fb_visualizer.draw_path(trajectory, self.path_finder_count)
             fb_visualizer.draw_start_and_goal(trajectory, self.path_finder_count)
@@ -112,7 +110,7 @@ class Spawner:
         end_time = time.time()
 
         rospy.loginfo(f"------------------ Done! ({end_time-start_time:.3f}s) ------------------ ")
-        fb_visualizer.show_live_path(paths)
+        fb_visualizer.show_live_path(trajectories)
         return None
 
 
@@ -133,20 +131,123 @@ class WavefrontExpansionNode:
         # -------- CONFIG END --------
         
         self.id: int = planner_id
-        self.grid_resolution = 2.0
         self.cv_bridge = CvBridge()
-        self.point_size : int = 2
-
-        
-
         return None
 
 
     def process_image(self, img):
         grid : np.ndarray = np.array(img) // 255
-        return grid.tolist()    
+        return grid.tolist()
+    
+    def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], dynamic_obstacles: list[TrajectoryData] = []) -> TrajectoryData:
+        rospy.loginfo(f"Planner {self.id} Starting Trajectory Search")
 
-    def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> TrajectoryData:
+        start_time = time.time()
+
+        start_waypoint : Waypoint = Waypoint(start_pos, 0.0)
+        goal_waypoint : Waypoint = Waypoint(goal_pos, float('inf'))
+
+        occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
+        for dynamic_obstacle in dynamic_obstacles:
+            for waypoint in dynamic_obstacle.waypoints:
+                if waypoint.pixel_pos in occupied_positions.keys():
+                    occupied_positions[waypoint.pixel_pos].append(waypoint)
+                else:
+                    occupied_positions[waypoint.pixel_pos] = [waypoint]
+                
+
+        heap: list[tuple[float, Waypoint]] = [(0, start_waypoint)]
+        rows: int = static_obstacles.shape[0]
+        cols: int = static_obstacles.shape[1]
+        
+        timings: np.ndarray = np.zeros((rows, cols)) - 1
+        timings[start_pos[0], start_pos[1]] = 0.0
+
+        direct_neighbors: list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
+        neighbors: list[tuple[int, int]] = direct_neighbors
+        if self.allow_diagonals:
+            neighbors += diagonal_neighbors
+
+        iterations : int = 0
+        while heap:
+            iterations += 1
+            current_cost, current_waypoint = heapq.heappop(heap)
+            if iterations % 1000 == 0:
+                rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
+            if iterations > 500_000:
+                rospy.logwarn(f"planner {self.id}: breaking because algorithm reached max iterations")
+                break
+            if current_waypoint.pixel_pos == goal_pos:
+                rospy.loginfo(f"planner {self.id}: Reached the goal after {iterations} iterations")
+                goal_waypoint = current_waypoint
+                break
+
+            for x_neighbor, y_neighbor in neighbors:
+                x, y = current_waypoint.pixel_pos[0] + x_neighbor, current_waypoint.pixel_pos[1] + y_neighbor
+                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
+                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41422)
+
+                    if self.check_dynamic_obstacles and (x, y) in occupied_positions.keys(): # check for dynamic obstacles
+                        is_occupied : bool = False
+                        for waypoint in occupied_positions[(x, y)]:
+                            if waypoint.occupied_from <= driving_cost <= waypoint.occuped_until:
+                                #current_waypoint.occuped_until = waypoint.occuped_until
+                                heapq.heappush(heap, (waypoint.occuped_until, current_waypoint))
+                                is_occupied = True
+                                break
+                        if is_occupied:
+                            continue
+                    # cell isnt occupied -> add it to heap
+                    if driving_cost < timings[x, y] or timings[x, y] < 0:
+                        timings[x, y] = driving_cost
+                        new_waypoint : Waypoint = Waypoint((x,y), driving_cost, previous_waypoint=current_waypoint)
+                        heapq.heappush(heap, (driving_cost, new_waypoint))
+
+        rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time:.3f}s.")
+        
+
+        #* --- Reconstruct Path ---
+        waypoints : list[Waypoint] = []
+        current_waypoint : Waypoint | None = goal_waypoint
+        rospy.loginfo(f"goal_waypoint {goal_waypoint}")
+
+        while current_waypoint is not None:
+            if current_waypoint.previousWaypoint is not None:
+                current_waypoint.previousWaypoint.occuped_until = current_waypoint.occupied_from + 10 # todo: define different metrics here
+            waypoints.append(current_waypoint)
+            current_waypoint = current_waypoint.previousWaypoint
+            if self.dynamic_visualization:
+                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, waypoints)
+
+        waypoints.reverse()
+
+        trajectory_data : TrajectoryData = TrajectoryData(self.id, waypoints)
+
+        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(waypoints)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
+
+        # Transform Path from Pixel-Space to World-Space for visualization and path following
+        transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
+        for waypoint in trajectory_data.waypoints:
+            response : TransformPixelToWorldResponse = transform_pixel_to_world(waypoint.pixel_pos[0], waypoint.pixel_pos[1])
+            waypoint.world_pos = (response.x_world, response.y_world)
+        
+        # Visualization
+        fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
+
+        return trajectory_data
+                        
+
+            
+
+#-------------------------------------------
+
+    def path_finder_old(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> TrajectoryData:
+        rospy.logerr("old deprecated funtion")
+        return TrajectoryData(-1, [])
         rospy.loginfo(f"Planner {self.id} Starting wavefront expansion")
         start_time = time.time()
 
@@ -161,11 +262,12 @@ class WavefrontExpansionNode:
             neighbors += diagonal_neighbors
 
         timings: np.ndarray = np.zeros((rows, cols)) - 1
+        timings[start_pos[0], start_pos[1]] = 0.0
         predecessors: dict[tuple[int, int], tuple[int, int]] = {}
 
         iterations: int = 0
 
-        timings[start_pos[0], start_pos[1]] = 0.0
+        
 
         
         #* --- Generate Timings ---
@@ -188,6 +290,22 @@ class WavefrontExpansionNode:
                 break
 
             #current_cost = timings[current_element[0], current_element[1]]
+
+        
+            if self.check_dynamic_obstacles and occupation[current_element]:
+                is_occupied : bool = False
+                occupation_list : list[tuple[float, float]] = occupation[current_element]
+                for occ_from, occ_until in occupation_list:
+                    if occ_from -10 <= current_cost <= occ_until: #! this is bad because magic number as to match occ time which may not be static
+                        rospy.logwarn(f"robot {self.id} collides at position {current_element} after {current_cost}s while waiting. it is occupied between {occ_from}s -> {occ_until}s ")
+                        if current_element in predecessors.keys():
+                            heapq.heappush(heap, (occ_until + 0.1, predecessors[current_element]))
+                        else:
+                            rospy.logerr(f"missing key in predecessors {current_element}")
+                        is_occupied = True
+                        break
+                if is_occupied:
+                    continue
 
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_element[0] + x_neighbor, current_element[1] + y_neighbor
@@ -235,7 +353,7 @@ class WavefrontExpansionNode:
                 else:
                     #todo: add some uncertainty compensation here
                     #waypoint.occuped_until = timings[previous_node[0], previous_node[1]] # unmodified
-                    waypoint.occuped_until = timings[previous_node[0], previous_node[1]] + 2            # defined snake length
+                    waypoint.occuped_until = timings[previous_node[0], previous_node[1]] + 10            # defined snake length
                     #waypoint.occuped_until = (timings[previous_node[0], previous_node[1]] + 1) * 1.1   # snakes get longer over time -> uncertainty grows
                 waypoints.append(waypoint)
                 previous_node = current_node

@@ -28,7 +28,7 @@ class TrajectoryData():
 
 
 class Waypoint():
-    def __init__(self):
+    def __init__(self, pixel_pos : tuple[int, int], occupied_from: float, occupied_until : float = float('inf'), world_pos : tuple[float, float]|None = None, previous_waypoint:Waypoint|None = None):
         """
         Each grid cell the robot passes counts as a Waypoint. Multiple Waypoints make up the robots path.
         :params world_pos: the (x, y) position in world coordinates [m]; used to navigate the robot
@@ -36,11 +36,13 @@ class Waypoint():
         :params occupied_from: time when waypoint first becomes occupied, making it unavailable for othe
         :params occupied_until: time when waypoint becomes free, making it available for other robots [s]
         """
-        self.world_pos : tuple[float, float]    # the (x, y) position in world coordinates [m]; used to navigate the robot
-        self.pixel_pos : tuple[int, int]        # the (x, y) position in pixel coordinates [px]; used to find a path
-        self.occupied_from: float               # time when waypoint first becomes occupied, making it unavailable for other robots [s]
-        self.occuped_until: float               # time when waypoint becomes free, making it available for other robots [s]
+        self.world_pos : tuple[float, float] | None = world_pos # the (x, y) position in world coordinates [m]; used to navigate the robot
+        self.pixel_pos : tuple[int, int] = pixel_pos            # the (x, y) position in pixel coordinates [px]; used to find a path
+        self.occupied_from: float = occupied_from               # time when waypoint first becomes occupied, making it unavailable for other robots [s]
+        self.occuped_until: float = occupied_until              # time when waypoint becomes free, making it available for other robots [s]
+        self.previousWaypoint : Waypoint|None = previous_waypoint
 
-
+    def __lt__(self, other : Waypoint):
+        return self.occupied_from < other.occupied_from
 
 
