@@ -29,7 +29,7 @@ from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
 import time
 import heapq
-from commons import PathData
+from commons import TrajectoryData, Waypoint
 from visualization import fb_visualizer
 #from formation_builder.srv import transformation
 from formation_builder.srv import TransformPixelToWorld, TransformPixelToWorldRequest, TransformPixelToWorldResponse
@@ -42,7 +42,7 @@ class Spawner:
         #self.starting_positions : list[tuple[int, int]] =  [(1, 1), (3, 1), (5, 1), (7, 1)]
         #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
         
-        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (25, 20), (25, 50)]
+        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (25, 19), (25, 50)]
         self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (52, 12)]
 
         # --------- CONFIG END ---------
@@ -72,20 +72,15 @@ class Spawner:
         return None
     
 
-    def update_occupation_dict(self, path_data: PathData) -> None:
-        #! this function is somewhat buggy since it blocks the starting pos instead of the goal pos. may want to reorder that list
-        for index, point in enumerate(path_data.path_pixel):
-            occ_from : float = path_data.timings[point[0], point[1]]
-            occ_until : float = float('inf')
-            if index < len(path_data.path_pixel)-1:
-                occ_until : float = path_data.timings[path_data.path_pixel[index+1][0], path_data.path_pixel[index+1][1]] + 2 #! might remove this +x
-            self.occupation[point].append((occ_from, occ_until))
+    def update_occupation_dict(self, trajectory: TrajectoryData) -> None:
+        for waypoint in trajectory.waypoints:
+            self.occupation[waypoint.pixel_pos].append((waypoint.occupied_from, waypoint.occuped_until))
         return None
-    
+
 
     def map_callback(self, img_msg : Image) -> None:
         grid : np.ndarray = self.map_to_grid(img_msg)
-        paths : list[PathData] = []
+        paths : list[TrajectoryData] = []
 
         fb_visualizer.clear_image(grid.shape[0], grid.shape[1])
         fb_visualizer.draw_obstacles(grid)
@@ -97,13 +92,13 @@ class Spawner:
             if index >= len(self.starting_positions) or index >= len(self.goal_positions):
                 rospy.logwarn("there are not enough starting/goal positions for the chosen ammount of planners.")
                 break
-            path : PathData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
-            paths.append(path)
+            trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
+            paths.append(trajectory)
 
-            self.update_occupation_dict(path)
+            self.update_occupation_dict(trajectory)
 
-            fb_visualizer.draw_path(path, self.path_finder_count)
-            fb_visualizer.draw_start_and_goal(path, self.path_finder_count)
+            fb_visualizer.draw_path(trajectory, self.path_finder_count)
+            fb_visualizer.draw_start_and_goal(trajectory, self.path_finder_count)
             fb_visualizer.publish_image()
         end_time = time.time()
 
@@ -138,7 +133,7 @@ class WavefrontExpansionNode:
         grid : np.ndarray = np.array(img) // 255
         return grid.tolist()    
 
-    def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> PathData:
+    def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> TrajectoryData:
         rospy.loginfo(f"Planner {self.id} Starting wavefront expansion")
         start_time = time.time()
 
@@ -158,6 +153,8 @@ class WavefrontExpansionNode:
         iterations: int = 0
 
         timings[start_pos[0], start_pos[1]] = 0.0
+
+        
         #* --- Generate Timings ---
         while heap:
             iterations += 1
@@ -169,7 +166,7 @@ class WavefrontExpansionNode:
             if iterations % 1000 == 0:
                 rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
 
-            if iterations > 500000:
+            if iterations > 500_000:
                 rospy.logwarn(f"planner {self.id}: breaking because algorithm reached max iterations")
                 break
 
@@ -205,41 +202,58 @@ class WavefrontExpansionNode:
         end_time = time.time()
         elapsed_time = end_time - start_time
         rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time:.3f}s.")
-
-        #path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
         
 
-
         #* --- Reconstruct Path ---
+        waypoints : list[Waypoint] = []
+
         # Reconstruct path from goal to start using the predecessor of each node
-        path : list[tuple[int, int]] = []
         current_node: tuple[int, int] = goal_pos
+        previous_node: tuple[int, int] | None = None
         while current_node != start_pos:
-            path.append(current_node)
+            
             if current_node in predecessors.keys():
                 current_node = predecessors[current_node]
+                waypoint : Waypoint = Waypoint()
+                waypoint.pixel_pos = current_node
+                waypoint.occupied_from = timings[current_node[0], current_node[1]]
+                if previous_node is None:
+                    waypoint.occuped_until = float('inf')
+                else:
+                    #todo: add some uncertainty compensation here
+                    waypoint.occuped_until = timings[previous_node[0], previous_node[1]] + 10
+                waypoints.append(waypoint)
+                previous_node = current_node
+
+                if self.dynamic_visualization:
+                    fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, waypoints)
+                
             else:
                 rospy.logerr(f"Cant reconstruct path since {current_node} is not in keys; Path might be unvalid.")
                 break
-        path.append(start_pos)
-        path.reverse()
-        path_data: PathData = PathData(self.id, timings, path)
-        path_data.start = start_pos
-        path_data.goal = goal_pos
-        path_data.timings = timings
-        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
+        start_point : Waypoint = Waypoint()
+        start_point.occupied_from = 0
+        start_point.occuped_until = waypoints[-1].occupied_from # todo: add uncertainty here
+        start_point.pixel_pos = start_pos
+        waypoints.append(start_point)
+        waypoints.reverse()
+
+        trajectory_data : TrajectoryData = TrajectoryData(self.id, waypoints)
+
+        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(waypoints)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
 
         # Transform Path from Pixel-Space to World-Space for visualization and path following
         transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
-        for point in path:
-            response : TransformPixelToWorldResponse = transform_pixel_to_world(point[0], point[1])
-            path_data.path_world.append((response.x_world, response.y_world)) 
+        for waypoint in trajectory_data.waypoints:
+            response : TransformPixelToWorldResponse = transform_pixel_to_world(waypoint.pixel_pos[0], waypoint.pixel_pos[1])
+            waypoint.world_pos = (response.x_world, response.y_world)
         
         # Visualization
-        fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
-        return path_data
-    
+        fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
 
+        return trajectory_data
+    
+  
 
 
     #! Deprecated

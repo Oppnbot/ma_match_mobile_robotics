@@ -11,7 +11,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import colorsys
-from commons import PathData
+from commons import TrajectoryData, Waypoint
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import time
@@ -58,28 +58,28 @@ class Visualization():
         return image_matrix
 
 
-    def draw_path(self, path_data : PathData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
+    def draw_path(self, trajectory_data : TrajectoryData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        color = self.generate_distinct_colors(number_of_agents, path_data.planner_id, value=0.7)
-        for point in path_data.path_pixel:
-            current_val = image_matrix[point[0], point[1]]
+        color = self.generate_distinct_colors(number_of_agents, trajectory_data.planner_id, value=0.7)
+        for waypoint in trajectory_data.waypoints:
+            current_val = image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]]
             if all(x == 0 or x == 255 for x in current_val):
-                image_matrix[point[0], point[1]] = color
+                image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = color
             else:
                 r,g,b = color
                 new_color = (current_val[0] + r//2, current_val[1] + g//2, current_val[2] + b//2)
-                image_matrix[point[0], point[1]] = new_color
+                image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = new_color
         self.current_image_data = image_matrix
         return image_matrix
     
 
-    def draw_start_and_goal(self, path_data : PathData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
+    def draw_start_and_goal(self, trajectory_data : TrajectoryData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        color = self.generate_distinct_colors(number_of_agents, path_data.planner_id)
-        image_matrix[path_data.goal[0], path_data.goal[1]] = color
-        image_matrix[path_data.start[0], path_data.start[1]] = color
+        color = self.generate_distinct_colors(number_of_agents, trajectory_data.planner_id)
+        image_matrix[trajectory_data.goal.pixel_pos[0], trajectory_data.goal.pixel_pos[1]] = color
+        image_matrix[trajectory_data.start.pixel_pos[0], trajectory_data.start.pixel_pos[1]] = color
         self.current_image_data = image_matrix
         return image_matrix
     
@@ -95,7 +95,7 @@ class Visualization():
         return None
     
 
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], path:list[tuple[int, int]]=[]) -> None:
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints : list[Waypoint] = []) -> None:
         #rospy.logerr("draw timings is a deprecated function. please refactor your code")
         min_val = np.min(grid)
         max_val  = np.max(grid)
@@ -111,8 +111,8 @@ class Visualization():
                     blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
                     image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
         # path:
-        for point in path:
-            image_matrix[point[0], point[1]] = (0, 125 , 0)
+        for waypoint in waypoints:
+            image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = (0, 125 , 0)
         # start and goal:
         image_matrix[goal[0], goal[1]] = (255, 0, 0)
         image_matrix[start[0], start[1]] = (0, 255, 0)
@@ -124,19 +124,23 @@ class Visualization():
         return None
     
 
-    def show_live_path(self, paths : list[PathData]) -> None:
+    def show_live_path(self, trajectories : list[TrajectoryData]) -> None:
+        if trajectories is None:
+            rospy.logwarn("Can't visualize live path, since there are no trajectories to visualize!")
+            return None
         refresh_rate : int = 100 #hz
         rate: rospy.Rate = rospy.Rate(refresh_rate)
 
         elapsed_time : float = 0
         start_time : float = time.time()
-        time_factor : float = 5.0 # used to speed up sim
+        time_factor : float = 3.0 # used to speed up sim
 
-        last_goal_timestamp : float = 0
-        for path in paths:
-            time_for_reaching_goal : float = path.timings[path.goal[0], path.goal[1]] 
+        last_goal_timestamp : float = float('inf')
+        for trajectory in trajectories:
+            time_for_reaching_goal : float = trajectory.goal.occupied_from 
             if time_for_reaching_goal > last_goal_timestamp:
                 last_goal_timestamp = time_for_reaching_goal
+        time_for_reaching_goal += 10 # add an extra seconds
 
         end_time : float = start_time + time_for_reaching_goal
         rospy.loginfo(f"live visualization starting, simulating {time_for_reaching_goal}s at a speed of {time_factor}...")
@@ -147,16 +151,15 @@ class Visualization():
             marker_pub = rospy.Publisher('visualization_markers', MarkerArray, queue_size=10, latch=True)
             
 
-            for path in paths:
+            for trajectory in trajectories:
                 marker: Marker = Marker()
                 marker.header.frame_id = "map"
                 marker.header.stamp = rospy.Time.now()
                 marker.ns = "formation_builder"
-                marker.id = path.planner_id
+                marker.id = trajectory.planner_id
                 marker.type = Marker.CUBE_LIST
                 marker.action = Marker.ADD
-                marker.lifetime = rospy.Duration(0, 300_000_000) #! make this smarter (?) use occupied until
-                #marker.lifetime = rospy.Duration(0, int(1_000_000_000 * 20 / time_factor))
+                marker.lifetime = rospy.Duration(0, int(1_000_000_000 / time_factor))
 
                 marker.pose.orientation.w = 1.0
                 marker.pose.orientation.x = 0.0
@@ -166,21 +169,18 @@ class Visualization():
                 marker.scale.y = 1.4 #!map scale here
                 marker.scale.z = 0.1
                 marker.points = []
-                path_color = self.generate_distinct_colors(len(paths), path.planner_id, value=0.7)
+                path_color = self.generate_distinct_colors(len(trajectories), trajectory.planner_id, value=0.7)
 
                 marker.color.r = path_color[0]/255
                 marker.color.g = path_color[1]/255
                 marker.color.b = path_color[2]/255
                 marker.color.a = 0.7 # alpha value for transparancy
 
-                for index, path_point in enumerate(path.path_world):
-                    x = path.path_pixel[index][0]
-                    y = path.path_pixel[index][1]
-                    
-                    if float(np.abs(path.timings[x, y] - elapsed_time)) < 3:
+                for waypoint in trajectory.waypoints:
+                    if waypoint.occupied_from < elapsed_time < waypoint.occuped_until:
                         point : Point = Point()
-                        point.x = path_point[0]
-                        point.y = path_point[1]
+                        point.x = waypoint.world_pos[0]
+                        point.y = waypoint.world_pos[1]
                         point.z = 0.05
                         marker.points.append(point)
                 if marker.points:
