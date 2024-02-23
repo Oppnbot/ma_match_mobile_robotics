@@ -16,7 +16,7 @@ from formation_builder.msg import GridMap
 
 
 class MapReader:
-    resolution : float = 1.4#1.4 # [m] per grid cell
+    resolution : float = 1.4 #1.4 # [m] per grid cell
     show_debug_images : bool = False
     show_debug_prints : bool = True
 

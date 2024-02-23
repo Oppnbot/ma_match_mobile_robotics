@@ -9,8 +9,9 @@ from formation_builder.msg import GridMap
 class PathData():
     def __init__(self, planner_id:int, timings:np.ndarray, path:list[tuple[int, int]] = []):
         self.planner_id : int = planner_id
-        self.path_pixel : list[tuple[int, int]] = path
-        self.path_world : list[tuple[float, float]] = []
+        self.path_pixel : list[tuple[int, int]] = path          # path on the downscaled map [px]
+        self.path_world : list[tuple[float, float]] = []        # path in world coordinates [m]
+        self.occupation_list : list[tuple[float, float]] = []   # occupied [from, to]
         self.timings : np.ndarray = timings
         self.start: tuple[int, int]
         self.goal: tuple[int, int]

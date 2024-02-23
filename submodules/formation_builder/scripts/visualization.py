@@ -61,7 +61,7 @@ class Visualization():
     def draw_path(self, path_data : PathData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        color = self.generate_distinct_colors(number_of_agents, path_data.planner_id, value=0.5)
+        color = self.generate_distinct_colors(number_of_agents, path_data.planner_id, value=0.7)
         for point in path_data.path_pixel:
             current_val = image_matrix[point[0], point[1]]
             if all(x == 0 or x == 255 for x in current_val):
@@ -155,42 +155,33 @@ class Visualization():
                 marker.id = path.planner_id
                 marker.type = Marker.CUBE_LIST
                 marker.action = Marker.ADD
-                marker.lifetime = rospy.Duration(5, 0) #! make this smarter (?) use occupied until
-                #marker.lifetime = rospy.Duration(0, int(1_000_000_000 / refresh_rate))
+                marker.lifetime = rospy.Duration(0, 300_000_000) #! make this smarter (?) use occupied until
+                #marker.lifetime = rospy.Duration(0, int(1_000_000_000 * 20 / time_factor))
 
                 marker.pose.orientation.w = 1.0
                 marker.pose.orientation.x = 0.0
                 marker.pose.orientation.y = 0.0
                 marker.pose.orientation.z = 0.0
-                marker.scale.x = 2.0
-                marker.scale.y = 2.0
+                marker.scale.x = 1.4 #!map scale here
+                marker.scale.y = 1.4 #!map scale here
                 marker.scale.z = 0.1
                 marker.points = []
-                path_color = self.generate_distinct_colors(len(paths), path.planner_id)
+                path_color = self.generate_distinct_colors(len(paths), path.planner_id, value=0.7)
 
                 marker.color.r = path_color[0]/255
                 marker.color.g = path_color[1]/255
                 marker.color.b = path_color[2]/255
                 marker.color.a = 0.7 # alpha value for transparancy
-                #for i in range(1):
+
                 for index, path_point in enumerate(path.path_world):
-                    #marker_id += 1
-                    #rospy.loginfo(f"timings {path.timings}")
-                    #rospy.loginfo(f"timings {path.timings[0,0]}")
-                    #rospy.loginfo(f"asdfaf {(path.timings[0,0] - elapsed_time)}")
                     x = path.path_pixel[index][0]
                     y = path.path_pixel[index][1]
                     
-                    if float(np.abs(path.timings[x, y] - elapsed_time)) < 3.0:
+                    if float(np.abs(path.timings[x, y] - elapsed_time)) < 3:
                         point : Point = Point()
-                        
                         point.x = path_point[0]
                         point.y = path_point[1]
                         point.z = 0.05
-
-                        #point.x = path.planner_id
-                        #point.y = 0
-                        #point.z = 0.05
                         marker.points.append(point)
                 if marker.points:
                     marker_array.markers.append(marker)

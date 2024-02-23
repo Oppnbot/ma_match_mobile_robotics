@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# todo: leave cell if higher prio is approaching
 # todo: skip visited nodes ?
 # todo: pfadsuche austauschen, stattdessen last visited tracken
 # todo: fix those start-/stop occupation times
@@ -41,8 +42,8 @@ class Spawner:
         #self.starting_positions : list[tuple[int, int]] =  [(1, 1), (3, 1), (5, 1), (7, 1)]
         #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
         
-        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (34, 25), (25, 20), (30, 45)]
-        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
+        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (25, 20), (25, 50)]
+        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (52, 12)]
 
         # --------- CONFIG END ---------
         rospy.init_node('mapf')
@@ -77,7 +78,7 @@ class Spawner:
             occ_from : float = path_data.timings[point[0], point[1]]
             occ_until : float = float('inf')
             if index < len(path_data.path_pixel)-1:
-                occ_until : float = path_data.timings[path_data.path_pixel[index+1][0], path_data.path_pixel[index+1][1]] + 1 #! might remove this +1
+                occ_until : float = path_data.timings[path_data.path_pixel[index+1][0], path_data.path_pixel[index+1][1]] + 2 #! might remove this +x
             self.occupation[point].append((occ_from, occ_until))
         return None
     
@@ -96,7 +97,7 @@ class Spawner:
             if index >= len(self.starting_positions) or index >= len(self.goal_positions):
                 rospy.logwarn("there are not enough starting/goal positions for the chosen ammount of planners.")
                 break
-            path : PathData = path_finder.wavefront_expansion(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
+            path : PathData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
             paths.append(path)
 
             self.update_occupation_dict(path)
@@ -126,7 +127,7 @@ class WavefrontExpansionNode:
         self.cv_bridge = CvBridge()
         self.point_size : int = 2
 
-        self.allow_diagonals : bool = False
+        self.allow_diagonals : bool = True
         self.check_dynamic_obstacles : bool = True
         self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
 
@@ -137,7 +138,7 @@ class WavefrontExpansionNode:
         grid : np.ndarray = np.array(img) // 255
         return grid.tolist()    
 
-    def wavefront_expansion(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> PathData:
+    def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], occupation: dict[tuple[int, int], list[tuple[float, float]]]) -> PathData:
         rospy.loginfo(f"Planner {self.id} Starting wavefront expansion")
         start_time = time.time()
 
@@ -152,10 +153,12 @@ class WavefrontExpansionNode:
             neighbors += diagonal_neighbors
 
         timings: np.ndarray = np.zeros((rows, cols)) - 1
+        predecessors: dict[tuple[int, int], tuple[int, int]] = {}
+
         iterations: int = 0
 
         timings[start_pos[0], start_pos[1]] = 0.0
-
+        #* --- Generate Timings ---
         while heap:
             iterations += 1
             current_cost, current_element = heapq.heappop(heap)
@@ -195,6 +198,7 @@ class WavefrontExpansionNode:
                     # cell isnt occupied -> add it to heap
                     if driving_cost < timings[x, y] or timings[x, y] < 0:
                         timings[x, y] = driving_cost
+                        predecessors[(x, y)] = current_element
                         heapq.heappush(heap, (driving_cost, (x, y)))
 
         rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
@@ -202,23 +206,46 @@ class WavefrontExpansionNode:
         elapsed_time = end_time - start_time
         rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time:.3f}s.")
 
-        path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
-        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
+        #path: list[tuple[int, int]] = self.find_path(timings, start_pos, goal_pos)
+        
+
+
+        #* --- Reconstruct Path ---
+        # Reconstruct path from goal to start using the predecessor of each node
+        path : list[tuple[int, int]] = []
+        current_node: tuple[int, int] = goal_pos
+        while current_node != start_pos:
+            path.append(current_node)
+            if current_node in predecessors.keys():
+                current_node = predecessors[current_node]
+            else:
+                rospy.logerr(f"Cant reconstruct path since {current_node} is not in keys; Path might be unvalid.")
+                break
+        path.append(start_pos)
+        path.reverse()
         path_data: PathData = PathData(self.id, timings, path)
         path_data.start = start_pos
         path_data.goal = goal_pos
         path_data.timings = timings
+        rospy.loginfo(f"planner {self.id}: shortest path consists of {len(path)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
 
-        
+        # Transform Path from Pixel-Space to World-Space for visualization and path following
         transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
         for point in path:
             response : TransformPixelToWorldResponse = transform_pixel_to_world(point[0], point[1])
-            path_data.path_world.append((response.x_world, response.y_world))   
+            path_data.path_world.append((response.x_world, response.y_world)) 
+        
+        # Visualization
         fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, path)
         return path_data
+    
 
 
+
+    #! Deprecated
     def find_path(self, timings: np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
+        """!!! DEPRECATED !!!"""
+        rospy.logwarn("Find Path is deprecated and was replaced by a more robust function. Please dont use this function.")
         rospy.loginfo(f"planner {self.id} searching for the shortest path...")
         path : list[tuple[int, int]] = []
         next_pos : tuple[int, int] = goal_pos

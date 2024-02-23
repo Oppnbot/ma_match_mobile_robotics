@@ -23,7 +23,6 @@ class TransformationServer:
     
 
     def pixel_to_world_callback(self, req : TransformPixelToWorldRequest) -> TransformPixelToWorldResponse:
-        rospy.loginfo(f"request; scaling {self.scaling_factor} \n {req}")
         if self.scaling_factor is None:
             rospy.logwarn("scaling factor is None. This is likely due missing map data")
             return TransformPixelToWorldResponse(0.0, 0.0)
@@ -36,6 +35,7 @@ class TransformationServer:
     
 
     def world_to_pixel_callback(self, req : TransformWorldToPixelRequest) -> TransformWorldToPixelResponse:
+        #! this function is untested and may need some testing
         if self.scaling_factor is None:
             rospy.logwarn("scaling factor is None. This is likely due missing map data")
             return TransformWorldToPixelResponse(0, 0)
