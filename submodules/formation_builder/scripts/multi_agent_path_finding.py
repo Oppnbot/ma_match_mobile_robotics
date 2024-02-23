@@ -1,20 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# todo: leave cell if higher prio is approaching
-# todo: skip visited nodes ?
-# todo: pfadsuche austauschen, stattdessen last visited tracken
-# todo: fix those start-/stop occupation times
+
+# Bugfixes:
 # todo: when waiting in a cell, check for collision with later robots
+# todo: start/stop positioning are not scaling
+# todo: don't communicate via magic numbers, use publisher and subscribers
+
+# Code Quality:
+# todo: replace waypoints by ros messages
+# todo: distribute code to multiple nodes
+
+# Additional Features:
 # todo: option for wider paths to fit robot width (+map scaling)
-# todo: weird bug when not allowing for 8neighborhood in pf
 # todo: improve occupation time calculations with safety margin etc
-# todo: test in different scenarios
 # todo: assign new priorities when there is no viable path
 # todo: assign new priorities when a path took too long (?)
 # todo: implement path following
+# todo: distribute calculation to multiple robots for O{(n-1)!} instead of O{n!}
+
+# Other:
+# todo: skip visited nodes ?
+# todo: test in different scenarios
 # todo: adjust to the robots real dynamics (?)
-# todo: improve and test performance, maybe distribute the system to multiple pcs
+# todo: improve overall computing performance
 
 
 from __future__ import annotations
@@ -116,15 +125,19 @@ class Spawner:
 
 
 class WavefrontExpansionNode:
-    def __init__(self, planner_id:int=0):
+    def __init__(self, planner_id : int = 0):
+        # -------- CONFIG START --------
+        self.allow_diagonals : bool = False
+        self.check_dynamic_obstacles : bool = True
+        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
+        # -------- CONFIG END --------
+        
         self.id: int = planner_id
         self.grid_resolution = 2.0
         self.cv_bridge = CvBridge()
         self.point_size : int = 2
 
-        self.allow_diagonals : bool = True
-        self.check_dynamic_obstacles : bool = True
-        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
+        
 
         return None
 
@@ -179,7 +192,7 @@ class WavefrontExpansionNode:
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_element[0] + x_neighbor, current_element[1] + y_neighbor
                 if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
-                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41421366)
+                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41422)
 
                     if self.check_dynamic_obstacles and occupation[(x,y)]: # check for dynamic obstacles
                         is_occupied : bool = False
@@ -221,7 +234,9 @@ class WavefrontExpansionNode:
                     waypoint.occuped_until = float('inf')
                 else:
                     #todo: add some uncertainty compensation here
-                    waypoint.occuped_until = timings[previous_node[0], previous_node[1]] + 10
+                    #waypoint.occuped_until = timings[previous_node[0], previous_node[1]] # unmodified
+                    waypoint.occuped_until = timings[previous_node[0], previous_node[1]] + 2            # defined snake length
+                    #waypoint.occuped_until = (timings[previous_node[0], previous_node[1]] + 1) * 1.1   # snakes get longer over time -> uncertainty grows
                 waypoints.append(waypoint)
                 previous_node = current_node
 
@@ -253,44 +268,6 @@ class WavefrontExpansionNode:
 
         return trajectory_data
     
-  
-
-
-    #! Deprecated
-    def find_path(self, timings: np.ndarray, start_pos:tuple[int, int], goal_pos:tuple[int, int]) -> list[tuple[int, int]]:
-        """!!! DEPRECATED !!!"""
-        rospy.logwarn("Find Path is deprecated and was replaced by a more robust function. Please dont use this function.")
-        rospy.loginfo(f"planner {self.id} searching for the shortest path...")
-        path : list[tuple[int, int]] = []
-        next_pos : tuple[int, int] = goal_pos
-
-        direct_neighbors : list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
-        neighbors: list[tuple[int, int]] = direct_neighbors
-        if self.allow_diagonals or True:
-            neighbors += diagonal_neighbors
-        rows = len(timings)
-        cols = len(timings[0])
-        while next_pos != start_pos:
-            lowest_timing : float = float('inf')
-            lowest_neigbor: tuple[int, int]
-
-            for x_neighbor, y_neighbor in neighbors:
-                x, y = next_pos[0] + x_neighbor, next_pos[1] + y_neighbor
-                if 0 <= x < rows and 0 <= y < cols and -1 < timings[x, y] < lowest_timing:
-                    lowest_timing = timings[x, y]
-                    lowest_neigbor = (x, y)
-            if lowest_timing == float('inf'):
-                # This error means that goal may be unreachable. should not occur if wavefront generation succeeded
-                rospy.logerr(f"planner {self.id} pathfinding failed! there is no valid neighbor")
-                break
-            next_pos = lowest_neigbor
-            if lowest_neigbor in path:
-                # This error may occur when using different neighborhood metrics in path finding and wavefront generation
-                rospy.logerr(f"planner {self.id} pathfinding failed! Stuck in a dead end!")
-                break
-            path.append(lowest_neigbor)
-        return path
     
 
 if __name__ == '__main__':

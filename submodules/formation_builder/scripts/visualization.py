@@ -133,7 +133,7 @@ class Visualization():
 
         elapsed_time : float = 0
         start_time : float = time.time()
-        time_factor : float = 3.0 # used to speed up sim
+        time_factor : float = 5.0 # used to speed up sim
 
         last_goal_timestamp : float = float('inf')
         for trajectory in trajectories:
