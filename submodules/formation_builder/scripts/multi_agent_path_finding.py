@@ -3,8 +3,6 @@
 
 
 # Bugfixes:
-# todo: clear queue if goal is found but occupied (?)
-# todo: add all starting positions as dynamic obstacles with infinite occupation time
 # todo: start/stop positioning are not scaling
 # todo: don't communicate via magic numbers, use publisher and subscribers
 
@@ -32,14 +30,12 @@ import rospy
 import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from nav_msgs.msg import Path
-from geometry_msgs.msg import PoseStamped
 import time
 import heapq
 from commons import TrajectoryData, Waypoint
 from visualization import fb_visualizer
 #from formation_builder.srv import transformation
-from formation_builder.srv import TransformPixelToWorld, TransformPixelToWorldRequest, TransformPixelToWorldResponse
+from formation_builder.srv import TransformPixelToWorld, TransformPixelToWorldResponse
 
 
 class Spawner:
@@ -72,14 +68,8 @@ class Spawner:
         return None
     
 
-    def init_occupation_dict(self, width:int, height : int) -> None:
-        for w in range(width):
-            for h in range(height):
-                self.occupation[(w, h)] = []
-        return None
+
     
-
-
 
     def map_callback(self, img_msg : Image) -> None:
         grid : np.ndarray = self.map_to_grid(img_msg)
@@ -88,13 +78,20 @@ class Spawner:
         fb_visualizer.clear_image(grid.shape[0], grid.shape[1])
         fb_visualizer.draw_obstacles(grid)
 
-        self.init_occupation_dict(grid.shape[0], grid.shape[1])
-        start_time = start_time = time.time()
+        start_time = time.time()
+
+        # fill trajectory data with starting positions to avoid collisions
+        for i in range(len(self.path_finders)):
+            if i >= len(self.goal_positions):
+                break
+            trajectories.append(TrajectoryData(i, [Waypoint(self.starting_positions[i], occupied_from=0.0, occupied_until=float('inf'))]))
+
 
         for index, path_finder in enumerate(self.path_finders):
             if index >= len(self.starting_positions) or index >= len(self.goal_positions):
                 rospy.logwarn("there are not enough starting/goal positions for the chosen ammount of planners.")
                 break
+            trajectories.pop(0) # remove the first element which should be the starting pos
             trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], trajectories)
             #trajectory : TrajectoryData = path_finder.path_finder(grid, self.starting_positions[index], self.goal_positions[index], self.occupation)
             trajectories.append(trajectory)
@@ -124,18 +121,12 @@ class WavefrontExpansionNode:
         # -------- CONFIG START --------
         self.allow_diagonals : bool = False
         self.check_dynamic_obstacles : bool = True
-        self.dynamic_visualization : bool = True # publishes timing map after every step, very expensive
+        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
         # -------- CONFIG END --------
         
         self.id: int = planner_id
-        self.cv_bridge = CvBridge()
         return None
 
-
-    def process_image(self, img):
-        grid : np.ndarray = np.array(img) // 255
-        return grid.tolist()
-    
 
 
     def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], dynamic_obstacles: list[TrajectoryData] = []) -> TrajectoryData:
