@@ -4,16 +4,11 @@ from __future__ import annotations
 
 import rospy
 from nav_msgs.msg import OccupancyGrid
-from nav_msgs.msg import MapMetaData
 import numpy as np
 import cv2
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from visualization_msgs.msg import Marker
 from formation_builder.msg import GridMap
-from nav_msgs.msg import OccupancyGrid, GridCells
-
-
 
 
 class MapReader:
@@ -49,7 +44,7 @@ class MapReader:
         map_array : np.ndarray = np.array(map_data.data).reshape((map_data.info.height, map_data.info.width))
         flipped_data : np.ndarray = np.flip(map_array, axis=0)
 
-        map_array = (255 * (1 - flipped_data / 100)).astype(np.uint8)
+        map_array = (255 * (1 - flipped_data / 100)).astype(np.uint8) #type:ignore
 
 
         
@@ -95,14 +90,14 @@ class MapReader:
         kernel = np.array(
             [[1, 1, 1],
              [1, 1, 1],
-             [1, 1, 1]], dtype = np.uint8)
+             [1, 1, 1]], dtype = np.uint8) #type:ignore
         eroded_result = cv2.erode(thresh_image, kernel)
 
         #* Dilation
         kernel = np.array(
             [[0, 1, 0],
              [1, 1, 1],
-             [0, 1, 0]], dtype = np.uint8)
+             [0, 1, 0]], dtype = np.uint8) #type:ignore
         dilated_result = cv2.dilate(eroded_result, kernel)
         
         dilated_result = thresh_image #! this skips the erosion/dilation. might want to put it back in

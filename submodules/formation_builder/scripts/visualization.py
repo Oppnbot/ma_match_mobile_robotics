@@ -2,10 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import annotations
-from operator import index
-
-from yaml import Mark
-
 import rospy
 import numpy as np
 from sensor_msgs.msg import Image
@@ -16,7 +12,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import time
 from formation_builder.msg import GridMap
-from nav_msgs.msg import OccupancyGrid, GridCells
+from nav_msgs.msg import OccupancyGrid
 
 
 class Visualization():
@@ -40,7 +36,7 @@ class Visualization():
         return None
 
 
-    def generate_distinct_colors(self, num_colors:int, index:int, saturation : float = 1.0, value: float = 1.0) -> tuple[np.uint8, np.uint8 ,np.uint8]:
+    def generate_distinct_colors(self, num_colors:int, index:int, saturation : float = 1.0, value: float = 1.0) -> tuple[np.uint8, np.uint8 ,np.uint8]: #type:ignore
         """
         This function generates a specified number of colors with different hue values. The hue values are chosen in a way that maximizes the contrast between the different colors.
 
@@ -53,12 +49,12 @@ class Visualization():
         hue_delta : float = 360.0 / num_colors
         hue = (index * hue_delta) % 360
         r, g, b = colorsys.hsv_to_rgb(hue / 360.0, saturation, value)
-        r, g, b = np.uint8(r * 255), np.uint8(g * 255), np.uint8(b * 255)
+        r, g, b = np.uint8(r * 255), np.uint8(g * 255), np.uint8(b * 255) #type:ignore
         return (r, g, b)
 
 
     def clear_image(self, width: int, height: int) -> np.ndarray:
-        image_matrix = np.ones((width, height, 3), dtype=np.uint8)*255 # white image as default
+        image_matrix = np.ones((width, height, 3), dtype=np.uint8)*255 #type:ignore # white image as default
         self.current_image_data = image_matrix
         return image_matrix
     
@@ -93,6 +89,9 @@ class Visualization():
     def draw_start_and_goal(self, trajectory_data : TrajectoryData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
+        if trajectory_data.goal is None or trajectory_data.start is None:
+            rospy.logwarn(f"Can't draw start and stop positions for planner {trajectory_data.planner_id} since they are None")
+            return image_matrix
         color = self.generate_distinct_colors(number_of_agents, trajectory_data.planner_id)
         image_matrix[trajectory_data.goal.pixel_pos[0], trajectory_data.goal.pixel_pos[1]] = color
         image_matrix[trajectory_data.start.pixel_pos[0], trajectory_data.start.pixel_pos[1]] = color
@@ -103,7 +102,7 @@ class Visualization():
     def publish_image(self, image_matrix:np.ndarray|None = None) -> None:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        image_cv = np.uint8(image_matrix)
+        image_cv = np.uint8(image_matrix) #type:ignore
         image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_cv, encoding="rgb8")
         #cv2.imshow("debug image", image_cv)
         #cv2.waitKey(0)
@@ -118,7 +117,7 @@ class Visualization():
         min_val = np.min(grid)
         max_val = np.max(grid)
 
-        image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
+        image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8) #type:ignore
 
         # Map non-visited spaces to white
         non_visited_indices = grid == -1
@@ -126,7 +125,7 @@ class Visualization():
 
         # Map visited spaces with timing information to red/blue
         visited_indices = ~non_visited_indices
-        blue_value = ((grid[visited_indices] - min_val) / (max_val - min_val) * 200 + 55).astype(np.uint8)
+        blue_value = ((grid[visited_indices] - min_val) / (max_val - min_val) * 200 + 55).astype(np.uint8) #type:ignore
         image_matrix[visited_indices] = np.column_stack(((255 - blue_value), np.zeros_like(blue_value), blue_value))
 
         # dynamic obstacles:
@@ -168,7 +167,7 @@ class Visualization():
 
         last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
-            if trajectory.goal.previous_waypoint is None:
+            if trajectory.goal is None or trajectory.goal.previous_waypoint is None:
                 continue
             time_for_reaching_goal : float = trajectory.goal.previous_waypoint.occupied_until + 1
             if time_for_reaching_goal < float('inf') and time_for_reaching_goal > last_goal_timestamp:
@@ -178,7 +177,6 @@ class Visualization():
             rospy.logwarn(f"Trying to simulate for {last_goal_timestamp} ammount of time; will stop after 120s instead.")
             last_goal_timestamp = 120
 
-        end_time : float = start_time + time_for_reaching_goal
         rospy.loginfo(f"live visualization starting, simulating {time_for_reaching_goal}s at a speed of {time_factor}...")
 
         while elapsed_time < time_for_reaching_goal:
@@ -202,8 +200,14 @@ class Visualization():
                     marker.pose.orientation.x = 0.0
                     marker.pose.orientation.y = 0.0
                     marker.pose.orientation.z = 0.0
-                    marker.scale.x = 1.4 #!map scale here
-                    marker.scale.y = 1.4 #!map scale here
+
+                    if  self.grid_map is not None and self.grid_map.resolution_grid is not None:
+                        marker.scale.x = self.grid_map.resolution_grid
+                        marker.scale.y = self.grid_map.resolution_grid
+                    else:
+                        rospy.logwarn("Grid Resolution is unknown. Assuming 1m / grid cell")
+                        marker.scale.x = 1.0
+                        marker.scale.y = 1.0
                     marker.scale.z = 0.1
                     marker.points = []
                     path_color = self.generate_distinct_colors(len(trajectories), trajectory.planner_id, value=0.7)

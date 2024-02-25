@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import numpy as np
 import rospy
-from formation_builder.msg import GridMap
 
 
 class TrajectoryData():
