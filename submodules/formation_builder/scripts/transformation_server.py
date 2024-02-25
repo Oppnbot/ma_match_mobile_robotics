@@ -29,8 +29,8 @@ class TransformationServer:
         if self.grid_size is None:
             rospy.logwarn("Grid Size is None. This is likely due missing map data")
             return TransformPixelToWorldResponse(0.0, 0.0)
-        world_pos_x : float = req.y_pixel * self.scaling_factor
-        world_pos_y : float = (self.grid_size[0] - req.x_pixel) * self.scaling_factor
+        world_pos_x : float = (req.y_pixel + 0.5) * self.scaling_factor #move to right with +
+        world_pos_y : float = ((self.grid_size[0] - req.x_pixel) - 0.5) * self.scaling_factor
         return TransformPixelToWorldResponse(world_pos_x, world_pos_y)
     
 

@@ -176,6 +176,8 @@ class WavefrontExpansionNode:
                 rospy.loginfo(f"planner {self.id}: Reached the goal after {iterations} iterations")
                 goal_waypoint = current_waypoint
                 break
+            if self.dynamic_visualization:
+                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles)
 
             if self.check_dynamic_obstacles and (current_waypoint.pixel_pos in occupied_positions.keys()):
                 is_occupied = False
@@ -221,7 +223,7 @@ class WavefrontExpansionNode:
         current_waypoint : Waypoint | None = goal_waypoint
         while current_waypoint is not None:
             if current_waypoint.previousWaypoint is not None:
-                current_waypoint.previousWaypoint.occupied_until = (current_waypoint.occupied_from + 1) * 1.2 # todo: define different metrics here
+                current_waypoint.previousWaypoint.occupied_until = (current_waypoint.occupied_from + 1) * 2.0 # todo: define different metrics here
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previousWaypoint
             if self.dynamic_visualization:

@@ -11,6 +11,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from visualization_msgs.msg import Marker
 from formation_builder.msg import GridMap
+from nav_msgs.msg import OccupancyGrid, GridCells
 
 
 
@@ -25,8 +26,9 @@ class MapReader:
         self.cvbridge : CvBridge = CvBridge()
         rospy.init_node('map_reader')
         rospy.Subscriber('/map', OccupancyGrid, self.read_map)
-        self.map_pub : rospy.Publisher = rospy.Publisher('/formation_builder/gridmap', GridMap, queue_size=10, latch=True)
+        self.obstacles_pub : rospy.Publisher = rospy.Publisher('/formation_builder/static_obstacles', OccupancyGrid, queue_size=10, latch=True)
         self.image_pub : rospy.Publisher = rospy.Publisher('/formation_builder/map', Image, queue_size=10, latch=True)
+        self.grid_map_pub : rospy.Publisher = rospy.Publisher('/formation_builder/gridmap', GridMap, queue_size=5, latch=True)
         self.scaling_factor : float | None = None
         rospy.spin()
         return None
@@ -107,6 +109,22 @@ class MapReader:
 
         self.publish_image("map", dilated_result)
 
+        flipped_map : np.ndarray = dilated_result #np.flip(dilated_result, axis=1)
+        occupancy_grid_msg = OccupancyGrid()
+        occupancy_grid_msg.info.width = flipped_map.shape[1]
+        occupancy_grid_msg.info.height = flipped_map.shape[0]
+        occupancy_grid_msg.info.resolution = self.resolution 
+        occupancy_grid_msg.info.origin.position.x = 0.0 
+        occupancy_grid_msg.info.origin.position.y = dilated_result.shape[0] * self.resolution
+        occupancy_grid_msg.info.origin.position.z = 0.01 
+        occupancy_grid_msg.info.origin.orientation.x = 1.0
+        occupancy_grid_msg.info.origin.orientation.y = 0.0
+        occupancy_grid_msg.info.origin.orientation.z = 0.0
+        occupancy_grid_msg.info.origin.orientation.w = 0.0
+
+        flattened_map = flipped_map.flatten()
+        occupancy_grid_msg.data  = [0 if val == 0 else 100 for val in flattened_map]
+        self.obstacles_pub.publish(occupancy_grid_msg)
 
         grid_map : GridMap = GridMap()
         grid_map.scaling_factor = self.scaling_factor
@@ -114,9 +132,8 @@ class MapReader:
         grid_map.resolution_map = map_data.info.resolution
         grid_map.grid_width = dilated_result.shape[0]
         grid_map.grid_height = dilated_result.shape[1]
-
-        #grid_map.data = dilated_result
-        self.map_pub.publish(grid_map)
+        grid_map.data = dilated_result.flatten()
+        self.grid_map_pub.publish(grid_map)
         return None
     
 

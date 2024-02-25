@@ -15,14 +15,30 @@ from commons import TrajectoryData, Waypoint
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import time
+from formation_builder.msg import GridMap
+from nav_msgs.msg import OccupancyGrid, GridCells
+
 
 class Visualization():
     def __init__(self) -> None:
         self.cv_bridge : CvBridge = CvBridge()
-        self.debug_image_pub = rospy.Publisher(f"/formation_builder/debug_image", Image, queue_size=1, latch=True)
+        self.debug_image_pub : rospy.Publisher = rospy.Publisher("/formation_builder/debug_image", Image, queue_size=1, latch=True)
+        self.grid_map_sub : rospy.Subscriber = rospy.Subscriber('/formation_builder/gridmap', GridMap, self.grid_map_callback)
+        self.map_sub: rospy.Subscriber = rospy.Subscriber('/map', OccupancyGrid, self.map_callback)
+        self.grid_map : GridMap | None = None
+        self.map : OccupancyGrid | None = None
         self.current_image_data : np.ndarray = np.zeros((100, 100))
         return None
     
+
+    def grid_map_callback(self, grid_map : GridMap) -> None:
+        self.grid_map = grid_map
+        return None
+    
+    def map_callback(self, map : OccupancyGrid) -> None:
+        self.map = map
+        return None
+
 
     def generate_distinct_colors(self, num_colors:int, index:int, saturation : float = 1.0, value: float = 1.0) -> tuple[np.uint8, np.uint8 ,np.uint8]:
         """
@@ -95,10 +111,10 @@ class Visualization():
         return None
     
 
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints : list[Waypoint] = []) -> None:
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints : list[Waypoint] = [], dynamic_obstacles: list[TrajectoryData] = []) -> None:
         #rospy.logerr("draw timings is a deprecated function. please refactor your code")
-        min_val = np.min(grid)
-        max_val  = np.max(grid)
+        min_val : float = np.min(grid)
+        max_val : float = np.max(grid)
         image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
         for i in range(grid.shape[0]):
             for j in range(grid.shape[1]):
@@ -108,11 +124,18 @@ class Visualization():
                 elif val == -1:
                     image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
                 else:
-                    blue_value = int(200 * (val - min_val) / (max_val - min_val)) + 55
+                    blue_value : int = int(200 * (val - min_val) / (max_val - min_val)) + 55
                     image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
         # path:
         for waypoint in waypoints:
             image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = (0, 125 , 0)
+
+        # dynamic obstacles:
+        for dynamic_obstacle in dynamic_obstacles:
+            for waypoint in dynamic_obstacle.waypoints:
+                if waypoint.occupied_from < max_val < waypoint.occupied_until:
+                    image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = (125, 125, 125)
+
         # start and goal:
         image_matrix[goal[0], goal[1]] = (255, 0, 0)
         image_matrix[start[0], start[1]] = (0, 255, 0)
@@ -123,6 +146,8 @@ class Visualization():
         timing_pub.publish(image_msg)
         return None
     
+
+
 
     def show_live_path(self, trajectories : list[TrajectoryData]) -> None:
         if trajectories is None:
