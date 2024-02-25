@@ -168,9 +168,9 @@ class Visualization():
 
         last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
-            if trajectory.goal.previousWaypoint is None:
+            if trajectory.goal.previous_waypoint is None:
                 continue
-            time_for_reaching_goal : float = trajectory.goal.previousWaypoint.occupied_until + 1
+            time_for_reaching_goal : float = trajectory.goal.previous_waypoint.occupied_until + 1
             if time_for_reaching_goal < float('inf') and time_for_reaching_goal > last_goal_timestamp:
                 last_goal_timestamp = time_for_reaching_goal
 

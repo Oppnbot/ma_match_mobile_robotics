@@ -17,13 +17,10 @@ class TrajectoryData():
         self.planner_id : int = planner_id
         self.waypoints : list[Waypoint] = waypoints
 
-        self.start: Waypoint
-        self.goal: Waypoint
+        self.start : Waypoint | None = waypoints[0] if waypoints else None
+        self.goal : Waypoint | None = waypoints[-1] if waypoints else None
 
-        if waypoints:
-            self.start = waypoints[0]
-            self.goal = waypoints[-1]
-        else:
+        if not waypoints:
             rospy.logwarn(f"Planner {planner_id} tried to generate a trajectory with 0 waypoints.")
 
 
@@ -40,7 +37,7 @@ class Waypoint():
         self.pixel_pos : tuple[int, int] = pixel_pos            # the (x, y) position in pixel coordinates [px]; used to find a path
         self.occupied_from: float = occupied_from               # time when waypoint first becomes occupied, making it unavailable for other robots [s]
         self.occupied_until: float = occupied_until              # time when waypoint becomes free, making it available for other robots [s]
-        self.previousWaypoint : Waypoint|None = previous_waypoint
+        self.previous_waypoint : Waypoint|None = previous_waypoint
 
     def __lt__(self, other : Waypoint):
         return self.occupied_from < other.occupied_from

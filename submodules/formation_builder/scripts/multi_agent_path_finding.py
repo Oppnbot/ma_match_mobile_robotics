@@ -136,6 +136,8 @@ class WavefrontExpansionNode:
         grid : np.ndarray = np.array(img) // 255
         return grid.tolist()
     
+
+
     def path_finder(self, static_obstacles: np.ndarray, start_pos: tuple[int, int], goal_pos: tuple[int, int], dynamic_obstacles: list[TrajectoryData] = []) -> TrajectoryData:
         rospy.loginfo(f"Planner {self.id} Starting Trajectory Search")
 
@@ -147,17 +149,14 @@ class WavefrontExpansionNode:
         occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
         for dynamic_obstacle in dynamic_obstacles:
             for waypoint in dynamic_obstacle.waypoints:
-                if waypoint.pixel_pos in occupied_positions.keys():
-                    occupied_positions[waypoint.pixel_pos].append(waypoint)
-                else:
-                    occupied_positions[waypoint.pixel_pos] = [waypoint]
-                
+                occupied_positions.setdefault(waypoint.pixel_pos, []).append(waypoint)
+
         heap: list[tuple[float, Waypoint]] = [(0, start_waypoint)]
         rows: int = static_obstacles.shape[0]
         cols: int = static_obstacles.shape[1]
         
-        timings: np.ndarray = np.zeros((rows, cols)) - 1
-        timings[start_pos[0], start_pos[1]] = 0.0
+        timings: np.ndarray = np.full((rows, cols), -1.0)
+        timings[start_pos] = 0.0
 
         direct_neighbors: list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
@@ -181,28 +180,35 @@ class WavefrontExpansionNode:
             if self.dynamic_visualization:
                 fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=500)
 
+            # CHECK CURRENT POSITION FOR COLLISION
+            # if another robot is blocking the path, the robot waits for the path to become free. this may lead to collision with other robots that try to drive through this waiting position
+            # the proposed solution is to check for other robots and if a conflict is found, the waiting position will be changed to its parent position.
             if self.check_dynamic_obstacles and (current_waypoint.pixel_pos in occupied_positions.keys()):
                 is_occupied = False
                 for waypoint in occupied_positions[current_waypoint.pixel_pos]:
-                    if current_waypoint.occupied_from <= waypoint.occupied_from:# <= current_waypoint.occupied_until:
+                    if current_waypoint.occupied_from <= waypoint.occupied_from:
                         #rospy.logwarn(f"robot {self.id} would collide at position {current_waypoint.pixel_pos} after {current_cost}s while waiting. it is occupied between {waypoint.occupied_from}s -> {waypoint.occupied_until}s ")
                         is_occupied = True
-                        if current_waypoint.previousWaypoint is not None:
-                            heapq.heappush(heap, (waypoint.occupied_until, current_waypoint.previousWaypoint))
+                        if current_waypoint.previous_waypoint is not None:
+                            heapq.heappush(heap, (waypoint.occupied_until, current_waypoint.previous_waypoint))
                         break
                 if is_occupied:
                     continue
 
+            # GRAPH EXPANSION
+            # look at the neighbors; expand if possible. The neighbor has to contain free space, meaning no static/dynamic obstacle
+            # we also have to assign a cost depending on the time needed to reach this node. this is the parent cost + an additional driving cost
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_waypoint.pixel_pos[0] + x_neighbor, current_waypoint.pixel_pos[1] + y_neighbor
                 if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
                     driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41422)
-
+                    # DYNAMIC OBSTACLE CHECK
+                    # if the neighbor node is currently occupied by another robot, wait at the current position. To do that we add the current position back into the heap
+                    # but with an updated timing, that is equal to the time needed for the robot to free the position.
                     if self.check_dynamic_obstacles and (x, y) in occupied_positions.keys(): # check for dynamic obstacles
                         is_occupied : bool = False
                         for waypoint in occupied_positions[(x, y)]:
                             if waypoint.occupied_from <= driving_cost <= waypoint.occupied_until:
-                                #current_waypoint.occuped_until = waypoint.occuped_until
                                 if waypoint.pixel_pos == goal_pos: # goalpos was found but occupied -> wait and stop searching
                                     heap = [(waypoint.occupied_until, current_waypoint)]
                                 heapq.heappush(heap, (waypoint.occupied_until, current_waypoint))
@@ -210,7 +216,10 @@ class WavefrontExpansionNode:
                                 break
                         if is_occupied:
                             continue
-                    # cell isnt occupied -> add it to heap
+
+                    # EXPANSION
+                    # cell contains free space -> add it to the heap with the calculated driving cost. since the heap works like a priority queue, it will automatically be sorted,
+                    # so that we proceed with the earliest remaining node.
                     if driving_cost < timings[x, y] or timings[x, y] < 0:
                         timings[x, y] = driving_cost
                         new_waypoint : Waypoint = Waypoint((x,y), driving_cost, previous_waypoint=current_waypoint)
@@ -225,11 +234,11 @@ class WavefrontExpansionNode:
         #* --- Reconstruct Path ---
         waypoints : list[Waypoint] = []
         current_waypoint : Waypoint | None = goal_waypoint
-        while current_waypoint is not None:
-            if current_waypoint.previousWaypoint is not None:
-                current_waypoint.previousWaypoint.occupied_until = (current_waypoint.occupied_from + 1) * 2.0 # todo: define different metrics here
+        while current_waypoint:
+            if current_waypoint.previous_waypoint is not None:
+                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 2.0 # todo: define different metrics here
             waypoints.append(current_waypoint)
-            current_waypoint = current_waypoint.previousWaypoint
+            current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
                 fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, waypoints)
 
@@ -247,7 +256,6 @@ class WavefrontExpansionNode:
         # Visualization
         fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
         return trajectory_data
-                        
 
 
 if __name__ == '__main__':
