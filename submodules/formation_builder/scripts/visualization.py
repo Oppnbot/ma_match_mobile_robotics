@@ -111,54 +111,60 @@ class Visualization():
         return None
     
 
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints : list[Waypoint] = [], dynamic_obstacles: list[TrajectoryData] = []) -> None:
-        #rospy.logerr("draw timings is a deprecated function. please refactor your code")
-        min_val : float = np.min(grid)
-        max_val : float = np.max(grid)
+
+
+    
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints: list[Waypoint] = [], dynamic_obstacles: list[TrajectoryData] = [], sleep : int | None = None) -> None:
+        min_val = np.min(grid)
+        max_val = np.max(grid)
+
         image_matrix = np.zeros((grid.shape[0], grid.shape[1], 3), dtype=np.uint8)
-        for i in range(grid.shape[0]):
-            for j in range(grid.shape[1]):
-                val = grid[i, j]
-                if obstacles[i][j] == 0:
-                    image_matrix[i, j] = (0, 0, 0)  # black for obstacles
-                elif val == -1:
-                    image_matrix[i, j] = (255, 255, 255)  # white for non-visited spaces
-                else:
-                    blue_value : int = int(200 * (val - min_val) / (max_val - min_val)) + 55
-                    image_matrix[i, j] = (255 - blue_value, 0, blue_value)  # red/blue depending on timing
-        # path:
-        for waypoint in waypoints:
-            image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = (0, 125 , 0)
+
+        # Map non-visited spaces to white
+        non_visited_indices = grid == -1
+        image_matrix[obstacles != 0] = [255, 255, 255]
+
+        # Map visited spaces with timing information to red/blue
+        visited_indices = ~non_visited_indices
+        blue_value = ((grid[visited_indices] - min_val) / (max_val - min_val) * 200 + 55).astype(np.uint8)
+        image_matrix[visited_indices] = np.column_stack(((255 - blue_value), np.zeros_like(blue_value), blue_value))
 
         # dynamic obstacles:
         for dynamic_obstacle in dynamic_obstacles:
             for waypoint in dynamic_obstacle.waypoints:
                 if waypoint.occupied_from < max_val < waypoint.occupied_until:
-                    image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = (125, 125, 125)
+                    image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = [125, 125, 125]
 
-        # start and goal:
-        image_matrix[goal[0], goal[1]] = (255, 0, 0)
-        image_matrix[start[0], start[1]] = (0, 255, 0)
+        # path:
+        for waypoint in waypoints:
+            image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = [0, 125 , 0]
+        
+        # Plot start and goal points
+        image_matrix[goal[0], goal[1]] = [255, 0, 0]
+        image_matrix[start[0], start[1]] = [0, 255, 0]
 
-        image_msg : Image = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
-        #rospy.loginfo("published a new image")
-        timing_pub: rospy.Publisher = rospy.Publisher("/timing_image", Image, queue_size=1, latch=True)
+        # Publish the image
+        image_msg = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
+        timing_pub = rospy.Publisher("/timing_image", Image, queue_size=20, latch=True)
         timing_pub.publish(image_msg)
+
+        if sleep is not None:
+            rate = rospy.Rate(sleep)
+            rate.sleep()
         return None
     
-
 
 
     def show_live_path(self, trajectories : list[TrajectoryData]) -> None:
         if trajectories is None:
             rospy.logwarn("Can't visualize live path, since there are no trajectories to visualize!")
             return None
-        refresh_rate : int = 100 #hz
+        refresh_rate : int = 50 #hz
         rate: rospy.Rate = rospy.Rate(refresh_rate)
 
         elapsed_time : float = 0
         start_time : float = time.time()
-        time_factor : float = 5.0 # used to speed up sim
+        time_factor : float = 10.0 # used to speed up sim
 
         last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
@@ -182,41 +188,55 @@ class Visualization():
             
 
             for trajectory in trajectories:
-                marker: Marker = Marker()
-                marker.header.frame_id = "map"
-                marker.header.stamp = rospy.Time.now()
-                marker.ns = "formation_builder"
-                marker.id = trajectory.planner_id
-                marker.type = Marker.CUBE_LIST
-                marker.action = Marker.ADD
-                marker.lifetime = rospy.Duration(0, int(1_000_000_000 / time_factor))
+                def create_marker() -> Marker:
+                    marker: Marker = Marker()
+                    marker.header.frame_id = "map"
+                    marker.header.stamp = rospy.Time.now()
+                    marker.ns = "formation_builder"
+                    marker.id = trajectory.planner_id
+                    marker.type = Marker.CUBE_LIST
+                    marker.action = Marker.ADD
+                    marker.lifetime = rospy.Duration(0, int(1_000_000_000 / time_factor))
 
-                marker.pose.orientation.w = 1.0
-                marker.pose.orientation.x = 0.0
-                marker.pose.orientation.y = 0.0
-                marker.pose.orientation.z = 0.0
-                marker.scale.x = 1.4 #!map scale here
-                marker.scale.y = 1.4 #!map scale here
-                marker.scale.z = 0.1
-                marker.points = []
-                path_color = self.generate_distinct_colors(len(trajectories), trajectory.planner_id, value=0.7)
-
-                marker.color.r = path_color[0]/255
-                marker.color.g = path_color[1]/255
-                marker.color.b = path_color[2]/255
-                marker.color.a = 0.7 # alpha value for transparancy
+                    marker.pose.orientation.w = 1.0
+                    marker.pose.orientation.x = 0.0
+                    marker.pose.orientation.y = 0.0
+                    marker.pose.orientation.z = 0.0
+                    marker.scale.x = 1.4 #!map scale here
+                    marker.scale.y = 1.4 #!map scale here
+                    marker.scale.z = 0.1
+                    marker.points = []
+                    path_color = self.generate_distinct_colors(len(trajectories), trajectory.planner_id, value=0.7)
+                    marker.color.r = path_color[0]/255
+                    marker.color.g = path_color[1]/255
+                    marker.color.b = path_color[2]/255
+                    marker.color.a = 0.7 # alpha value for transparancy
+                    return marker
+                
+                robot_marker: Marker = create_marker()
+                path_marker: Marker = create_marker()
+                path_marker.id += 100_000
+                path_marker.color.a = 0.3
+                robot_marker.color.a = 0.7
+                robot_marker.points = []
+                path_marker.points = []
 
                 for waypoint in trajectory.waypoints:
+                    if waypoint.world_pos is None:
+                        continue
+                    point : Point = Point()
+                    point.x = waypoint.world_pos[0]
+                    point.y = waypoint.world_pos[1]
+                    point.z = 0.05
                     if waypoint.occupied_from < elapsed_time < waypoint.occupied_until:
-                        if waypoint.world_pos is None:
-                            continue
-                        point : Point = Point()
-                        point.x = waypoint.world_pos[0]
-                        point.y = waypoint.world_pos[1]
-                        point.z = 0.05
-                        marker.points.append(point)
-                if marker.points:
-                    marker_array.markers.append(marker)
+                        robot_marker.points.append(point)
+                    else:
+                        path_marker.points.append(point)
+
+                if robot_marker.points:
+                    marker_array.markers.append(robot_marker)
+                if path_marker.points:
+                    marker_array.markers.append(path_marker)
             marker_pub.publish(marker_array)
 
             rate.sleep()

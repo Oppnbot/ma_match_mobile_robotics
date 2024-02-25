@@ -3,9 +3,11 @@
 
 
 # Bugfixes:
+# todo: clear queue if goal is found but occupied (?)
 # todo: add all starting positions as dynamic obstacles with infinite occupation time
 # todo: start/stop positioning are not scaling
 # todo: don't communicate via magic numbers, use publisher and subscribers
+
 
 # Code Quality:
 # todo: replace waypoints by ros messages
@@ -122,7 +124,7 @@ class WavefrontExpansionNode:
         # -------- CONFIG START --------
         self.allow_diagonals : bool = False
         self.check_dynamic_obstacles : bool = True
-        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
+        self.dynamic_visualization : bool = True # publishes timing map after every step, very expensive
         # -------- CONFIG END --------
         
         self.id: int = planner_id
@@ -177,7 +179,7 @@ class WavefrontExpansionNode:
                 goal_waypoint = current_waypoint
                 break
             if self.dynamic_visualization:
-                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles)
+                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=500)
 
             if self.check_dynamic_obstacles and (current_waypoint.pixel_pos in occupied_positions.keys()):
                 is_occupied = False
@@ -201,6 +203,8 @@ class WavefrontExpansionNode:
                         for waypoint in occupied_positions[(x, y)]:
                             if waypoint.occupied_from <= driving_cost <= waypoint.occupied_until:
                                 #current_waypoint.occuped_until = waypoint.occuped_until
+                                if waypoint.pixel_pos == goal_pos: # goalpos was found but occupied -> wait and stop searching
+                                    heap = [(waypoint.occupied_until, current_waypoint)]
                                 heapq.heappush(heap, (waypoint.occupied_until, current_waypoint))
                                 is_occupied = True
                                 break
