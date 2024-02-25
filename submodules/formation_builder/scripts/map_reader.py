@@ -17,7 +17,7 @@ from nav_msgs.msg import OccupancyGrid, GridCells
 
 
 class MapReader:
-    resolution : float = 1.4 #1.4 # [m] per grid cell
+    resolution : float = 1.4  #1.4 # [m] per grid cell
     show_debug_images : bool = False
     show_debug_prints : bool = True
 
@@ -78,12 +78,12 @@ class MapReader:
         # Downscaling so that we get a useful gridsize for path planning. cell should be robot size
         grid_width : int = int(np.round(map_data.info.width * self.scaling_factor))
         grid_height : int = int(np.round(map_data.info.height * self.scaling_factor))
-        scaled_image = cv2.resize(eroded_image, (grid_width, grid_height), interpolation=cv2.INTER_NEAREST)
+        scaled_image = cv2.resize(eroded_image, (grid_width, grid_height), interpolation=cv2.INTER_LINEAR)
         self.show_image(scaled_image, "Scaled")
 
         #* BINARIZE
         # The scaling might result in some blurring effects, binarizing removes those
-        ret, thresh_image = cv2.threshold(scaled_image, 127, 255, cv2.THRESH_BINARY)
+        ret, thresh_image = cv2.threshold(scaled_image, 250, 255, cv2.THRESH_BINARY)
         self.show_image(thresh_image, "Binarized")
         if self.show_debug_prints:
             rospy.loginfo(f"Resized Image to a grid size of {self.resolution}cells/m:\n  new width:\t{grid_width}\n  new height:\t{grid_height}")
@@ -104,6 +104,9 @@ class MapReader:
              [1, 1, 1],
              [0, 1, 0]], dtype = np.uint8)
         dilated_result = cv2.dilate(eroded_result, kernel)
+        
+        dilated_result = thresh_image #! this skips the erosion/dilation. might want to put it back in
+
         self.show_image(dilated_result, "Opening")
 
 
