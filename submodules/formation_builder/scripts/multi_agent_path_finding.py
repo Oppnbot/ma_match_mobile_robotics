@@ -46,8 +46,17 @@ class Spawner:
         #self.starting_positions : list[tuple[int, int]] =  [(1, 1), (3, 1), (5, 1), (7, 1)]
         #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
         
-        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (23, 19), (25, 45)]
-        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (55, 13)]
+
+        #* for 1.4m
+        #self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (23, 19), (25, 45)]
+        #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (55, 13)]
+
+
+        #* for 0.3m
+        self.starting_positions : list[tuple[int, int]] =  [(28, 28), (49, 67), (32, 26), (38, 68)]
+        self.goal_positions: list[tuple[int, int]] =       [(98, 53), (74, 15), (84, 55), (78, 18)]
+
+
 
         # --------- CONFIG END ---------
         rospy.init_node('mapf')
@@ -85,7 +94,19 @@ class Spawner:
         for i in range(len(self.path_finders)):
             if i >= len(self.goal_positions):
                 break
-            trajectories.append(TrajectoryData(i, [Waypoint(self.starting_positions[i], occupied_from=0.0, occupied_until=float('inf'))]))
+            starting_waypoints : list[Waypoint] = []
+            kernel_size :int = 3#! make this a parameter
+            half_kernel_size : int = (kernel_size - 1) // 2
+            starting_waypoint : Waypoint = Waypoint(self.starting_positions[i], 0, float('inf'))
+            #todo: use bloating function instead?
+            starting_waypoints.append(starting_waypoint)
+            for x in range(-half_kernel_size, half_kernel_size+1):
+                for y in range(-half_kernel_size, half_kernel_size+1):
+                    if x == 0 and y == 0:
+                        continue
+                    position : tuple[int, int] = (self.starting_positions[i][0] + x, self.starting_positions[i][1] + y)
+                    starting_waypoints.append(Waypoint(position, 0, float('inf'), previous_waypoint=starting_waypoint))
+            trajectories.append(TrajectoryData(i, starting_waypoints))
 
 
         for index, path_finder in enumerate(self.path_finders):
@@ -123,6 +144,7 @@ class WavefrontExpansionNode:
         self.allow_diagonals : bool = True
         self.check_dynamic_obstacles : bool = True
         self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
+        self.kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
         # -------- CONFIG END --------
         
         self.id: int = planner_id
@@ -131,19 +153,34 @@ class WavefrontExpansionNode:
 
     def bloat_path(self, waypoints : list[Waypoint]) -> list[Waypoint]:
         bloated_path : list[Waypoint] = []
-
-        occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
-
+        occupied_positions : dict[tuple[int, int], list[Waypoint]] = {}
         for waypoint in waypoints:
             if waypoint.pixel_pos not in occupied_positions.keys():
                 occupied_positions[waypoint.pixel_pos] = []
             occupied_positions[waypoint.pixel_pos].append(waypoint)
-            
-
-                
-            
-
-
+            bloat_width : int = (self.kernel_size - 1) // 2
+            for x in range(waypoint.pixel_pos[0] - bloat_width, waypoint.pixel_pos[0] + bloat_width + 1):
+                for y in range(waypoint.pixel_pos[1] - bloat_width, waypoint.pixel_pos[1] + bloat_width +1):
+                    if (x, y) not in occupied_positions.keys():
+                        occupied_positions[x, y] = []
+                    new_waypoint : Waypoint = Waypoint((x,y), waypoint.occupied_from, waypoint.occupied_until)
+                    occupied_positions[(x, y)].append(new_waypoint)
+        for position, waypoints in occupied_positions.items():
+            if not waypoints:
+                continue
+            min_occupied_from : float = float('inf')
+            max_occupied_until : float = 0
+            for waypoint in waypoints:
+                if waypoint.occupied_from < min_occupied_from:
+                    min_occupied_from = waypoint.occupied_from
+                if waypoint.occupied_until > max_occupied_until:
+                    max_occupied_until = waypoint.occupied_until
+            if min_occupied_from == float('inf'):
+                rospy.logwarn("min occupation time is infinite")
+            if max_occupied_until == 0:
+                rospy.logwarn("max occupation time is 0")
+            new_waypoint : Waypoint = Waypoint(position, min_occupied_from, max_occupied_until)
+            bloated_path.append(new_waypoint)
         return bloated_path
 
 
@@ -158,15 +195,15 @@ class WavefrontExpansionNode:
 
         occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
         for dynamic_obstacle in dynamic_obstacles:
-            for waypoint in dynamic_obstacle.waypoints:
+            bloated_dynamic_obstacles : list[Waypoint] = self.bloat_path(dynamic_obstacle.waypoints)
+            for waypoint in bloated_dynamic_obstacles:
                 occupied_positions.setdefault(waypoint.pixel_pos, []).append(waypoint)
 
         heap: list[tuple[float, Waypoint]] = [(0, start_waypoint)]
 
-        kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
-
+        
         # Dilate the obstacles by ~1/2 of the robots size to avoid collisions
-        kernel = np.ones((kernel_size, kernel_size),np.uint8) #type: ignore
+        kernel = np.ones((self.kernel_size, self.kernel_size),np.uint8) #type: ignore
         bloated_static_obstacles : np.ndarray = cv2.erode(static_obstacles, kernel) #-> erosion of free space = dilation of obstacles
 
 
@@ -208,7 +245,14 @@ class WavefrontExpansionNode:
                         #rospy.logwarn(f"robot {self.id} would collide at position {current_waypoint.pixel_pos} after {current_cost}s while waiting. it is occupied between {waypoint.occupied_from}s -> {waypoint.occupied_until}s ")
                         is_occupied = True
                         if current_waypoint.previous_waypoint is not None:
-                            heapq.heappush(heap, (waypoint.occupied_until, current_waypoint.previous_waypoint))
+                            #rospy.loginfo(f"will wait at {current_waypoint.previous_waypoint.pixel_pos} until {waypoint.occupied_until}")
+                            if waypoint.occupied_until == float('inf'):
+                                rospy.logwarn(f"waypoint at {current_waypoint.pixel_pos} is inf occupied")
+                                continue
+                            timings[current_waypoint.pixel_pos[0], current_waypoint.pixel_pos[1]] = -1
+                            heapq.heappush(heap, (waypoint.occupied_until, current_waypoint.previous_waypoint)) # we have to add a small number because of floating point issues
+                        else:
+                            rospy.logwarn(f"will collide at current position {current_waypoint.pixel_pos} but previous waypoint is none!")
                         break
                 if is_occupied:
                     continue
@@ -219,7 +263,7 @@ class WavefrontExpansionNode:
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_waypoint.pixel_pos[0] + x_neighbor, current_waypoint.pixel_pos[1] + y_neighbor
                 if 0 <= x < rows and 0 <= y < cols and bloated_static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
-                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41422)
+                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41421)
                     # DYNAMIC OBSTACLE CHECK
                     # if the neighbor node is currently occupied by another robot, wait at the current position. To do that we add the current position back into the heap
                     # but with an updated timing, that is equal to the time needed for the robot to free the position.
@@ -242,7 +286,9 @@ class WavefrontExpansionNode:
                         timings[x, y] = driving_cost
                         new_waypoint : Waypoint = Waypoint((x,y), driving_cost, previous_waypoint=current_waypoint)
                         heapq.heappush(heap, (driving_cost, new_waypoint))
-
+            if not heap:
+                rospy.loginfo(f"planner {self.id}s stopping because heap queue is empty")
+        
         rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
         end_time = time.time()
         elapsed_time = end_time - start_time
@@ -254,14 +300,19 @@ class WavefrontExpansionNode:
         current_waypoint : Waypoint | None = goal_waypoint
         while current_waypoint:
             if current_waypoint.previous_waypoint is not None:
-                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 2.0 # todo: define different metrics here
+                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 1.5 + 1.0 # todo: define different metrics here
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
                 fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, waypoints)
 
         waypoints.reverse()
+
+        bloated_waypoints : list[Waypoint] = self.bloat_path(waypoints)
+
+
         trajectory_data : TrajectoryData = TrajectoryData(self.id, waypoints)
+        trajectory_data.waypoints = bloated_waypoints
 
         rospy.loginfo(f"planner {self.id}: shortest path consists of {len(waypoints)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
 
