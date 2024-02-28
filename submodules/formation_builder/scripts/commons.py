@@ -37,6 +37,9 @@ class Waypoint():
         self.occupied_until: float = occupied_until              # time when waypoint becomes free, making it available for other robots [s]
         self.previous_waypoint : Waypoint|None = previous_waypoint
 
+    def __eq__(self, __value: Waypoint) -> bool:
+        return self.pixel_pos == __value.pixel_pos
+
     def __lt__(self, other : Waypoint):
         return self.occupied_from < other.occupied_from
 

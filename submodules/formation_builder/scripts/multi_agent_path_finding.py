@@ -30,6 +30,7 @@ import rospy
 import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+import cv2
 import time
 import heapq
 from commons import TrajectoryData, Waypoint
@@ -45,8 +46,8 @@ class Spawner:
         #self.starting_positions : list[tuple[int, int]] =  [(1, 1), (3, 1), (5, 1), (7, 1)]
         #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (62, 17), (60, 39), (52, 12)]
         
-        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (25, 19), (25, 50)]
-        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (52, 12)]
+        self.starting_positions : list[tuple[int, int]] =  [(20, 20), (35, 48), (23, 19), (25, 45)]
+        self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (55, 13)]
 
         # --------- CONFIG END ---------
         rospy.init_node('mapf')
@@ -119,13 +120,31 @@ class Spawner:
 class WavefrontExpansionNode:
     def __init__(self, planner_id : int = 0):
         # -------- CONFIG START --------
-        self.allow_diagonals : bool = False
+        self.allow_diagonals : bool = True
         self.check_dynamic_obstacles : bool = True
         self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
         # -------- CONFIG END --------
         
         self.id: int = planner_id
         return None
+    
+
+    def bloat_path(self, waypoints : list[Waypoint]) -> list[Waypoint]:
+        bloated_path : list[Waypoint] = []
+
+        occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
+
+        for waypoint in waypoints:
+            if waypoint.pixel_pos not in occupied_positions.keys():
+                occupied_positions[waypoint.pixel_pos] = []
+            occupied_positions[waypoint.pixel_pos].append(waypoint)
+            
+
+                
+            
+
+
+        return bloated_path
 
 
 
@@ -143,8 +162,16 @@ class WavefrontExpansionNode:
                 occupied_positions.setdefault(waypoint.pixel_pos, []).append(waypoint)
 
         heap: list[tuple[float, Waypoint]] = [(0, start_waypoint)]
-        rows: int = static_obstacles.shape[0]
-        cols: int = static_obstacles.shape[1]
+
+        kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
+
+        # Dilate the obstacles by ~1/2 of the robots size to avoid collisions
+        kernel = np.ones((kernel_size, kernel_size),np.uint8) #type: ignore
+        bloated_static_obstacles : np.ndarray = cv2.erode(static_obstacles, kernel) #-> erosion of free space = dilation of obstacles
+
+
+        rows: int = bloated_static_obstacles.shape[0]
+        cols: int = bloated_static_obstacles.shape[1]
         
         timings: np.ndarray = np.full((rows, cols), -1.0)
         timings[start_pos] = 0.0
@@ -169,7 +196,7 @@ class WavefrontExpansionNode:
                 goal_waypoint = current_waypoint
                 break
             if self.dynamic_visualization:
-                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=500)
+                fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=500)
 
             # CHECK CURRENT POSITION FOR COLLISION
             # if another robot is blocking the path, the robot waits for the path to become free. this may lead to collision with other robots that try to drive through this waiting position
@@ -191,7 +218,7 @@ class WavefrontExpansionNode:
             # we also have to assign a cost depending on the time needed to reach this node. this is the parent cost + an additional driving cost
             for x_neighbor, y_neighbor in neighbors:
                 x, y = current_waypoint.pixel_pos[0] + x_neighbor, current_waypoint.pixel_pos[1] + y_neighbor
-                if 0 <= x < rows and 0 <= y < cols and static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
+                if 0 <= x < rows and 0 <= y < cols and bloated_static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
                     driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41422)
                     # DYNAMIC OBSTACLE CHECK
                     # if the neighbor node is currently occupied by another robot, wait at the current position. To do that we add the current position back into the heap
@@ -231,7 +258,7 @@ class WavefrontExpansionNode:
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
-                fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, waypoints)
+                fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, waypoints)
 
         waypoints.reverse()
         trajectory_data : TrajectoryData = TrajectoryData(self.id, waypoints)
@@ -245,7 +272,7 @@ class WavefrontExpansionNode:
             waypoint.world_pos = (response.x_world, response.y_world)
         
         # Visualization
-        fb_visualizer.draw_timings(timings, static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
+        fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
         return trajectory_data
 
 
