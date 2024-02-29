@@ -151,9 +151,12 @@ class Spawner:
 class WavefrontExpansionNode:
     def __init__(self, planner_id : int = 0):
         # -------- CONFIG START --------
-        self.allow_diagonals : bool = True
+        self.allow_straights : bool = True   # allows the following movements: 0°, 90°, 180°, 380° 
+        self.allow_diagonals : bool = True   # allows the following movements: 45°, 135°, 225°, 315°
+        self.allow_knight_moves: bool = False # allows the following movements: 26°, 63°, 116°, 153°, 206°, 243°, 296°, 333° (like a knight in chess)
+
         self.check_dynamic_obstacles : bool = True
-        self.dynamic_visualization : bool = True # publishes timing map after every step, very expensive
+        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
         self.kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
         # -------- CONFIG END --------
         
@@ -230,11 +233,18 @@ class WavefrontExpansionNode:
         timings: np.ndarray = np.full((rows, cols), -1.0)
         timings[start_pos] = 0.0
 
+        
         direct_neighbors: list[tuple[int, int]] = [(1, 0), (-1, 0), (0, 1), (0, -1)]
         diagonal_neighbors: list[tuple[int, int]] = [(1, 1), (-1, 1), (1, -1), (-1, -1)]
-        neighbors: list[tuple[int, int]] = direct_neighbors
+        knight_neighbors: list[tuple[int, int]] = [(2, 1), (-2, 1), (2, -1), (-2, -1), (1, 2), (-1, 2), (1, -2), (-1, -2)]
+        neighbors: list[tuple[int, int]] = []
+        if self.allow_straights:
+            neighbors += direct_neighbors
         if self.allow_diagonals:
             neighbors += diagonal_neighbors
+        if self.allow_knight_moves:
+            neighbors += knight_neighbors
+        neighbor_costs : list[float] = [np.hypot(x, y) for x, y in neighbors]
 
         loop_time_start = time.time()
         iterations : int = 0
@@ -277,10 +287,11 @@ class WavefrontExpansionNode:
             # GRAPH EXPANSION
             # look at the neighbors; expand if possible. The neighbor has to contain free space, meaning no static/dynamic obstacle
             # we also have to assign a cost depending on the time needed to reach this node. this is the parent cost + an additional driving cost
-            for x_neighbor, y_neighbor in neighbors:
+            for index, (x_neighbor, y_neighbor) in enumerate(neighbors):
                 x, y = current_waypoint.pixel_pos[0] + x_neighbor, current_waypoint.pixel_pos[1] + y_neighbor
                 if 0 <= x < rows and 0 <= y < cols and bloated_static_obstacles[x, y] != 0: # check for static obstacles / out of bounds
-                    driving_cost = current_cost + (1 if abs(x_neighbor + y_neighbor) == 1 else 1.41421)
+  
+                    driving_cost = current_cost + neighbor_costs[index]
                     # DYNAMIC OBSTACLE CHECK
                     # if the neighbor node is currently occupied by another robot, wait at the current position. To do that we add the current position back into the heap
                     # but with an updated timing, that is equal to the time needed for the robot to free the position.
@@ -317,7 +328,7 @@ class WavefrontExpansionNode:
         current_waypoint : Waypoint | None = goal_waypoint
         while current_waypoint:
             if current_waypoint.previous_waypoint is not None:
-                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 1.3 + 1.0 # todo: define different metrics here
+                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1)* 1.1 + 1.0 # todo: define different metrics here #*1.3+1.0
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
