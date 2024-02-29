@@ -165,21 +165,26 @@ class Visualization():
         start_time : float = time.time()
         time_factor : float = 10.0 # used to speed up sim
 
+        # calculate the simulation time by finding the last valid timestamp before reaching goal for all trajectories
         last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
-            if trajectory.goal is None or trajectory.goal.previous_waypoint is None:
+            if trajectory.goal is None:
                 continue
-            time_for_reaching_goal : float = trajectory.goal.previous_waypoint.occupied_until + 1
-            if time_for_reaching_goal < float('inf') and time_for_reaching_goal > last_goal_timestamp:
-                last_goal_timestamp = time_for_reaching_goal
+            waypoint : Waypoint | None = trajectory.goal
+            while waypoint is not None:
+                if waypoint.occupied_until != float('inf'): # valid timestamp
+                    if waypoint.occupied_until > last_goal_timestamp:
+                        last_goal_timestamp = waypoint.occupied_until
+                    break
+                waypoint = waypoint.previous_waypoint
 
         if last_goal_timestamp == float('inf') or last_goal_timestamp <= 0:
             rospy.logwarn(f"Trying to simulate for {last_goal_timestamp} ammount of time; will stop after 120s instead.")
             last_goal_timestamp = 120
 
-        rospy.loginfo(f"live visualization starting, simulating {time_for_reaching_goal}s at a speed of {time_factor}...")
+        rospy.loginfo(f"live visualization starting, simulating {last_goal_timestamp}s at a speed of {time_factor}...")
 
-        while elapsed_time < time_for_reaching_goal:
+        while elapsed_time < last_goal_timestamp:
             marker_array : MarkerArray = MarkerArray()
             marker_array.markers = []
             marker_pub = rospy.Publisher('visualization_markers', MarkerArray, queue_size=10, latch=True)

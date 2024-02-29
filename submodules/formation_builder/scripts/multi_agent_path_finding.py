@@ -52,9 +52,19 @@ class Spawner:
         #self.goal_positions: list[tuple[int, int]] =       [(70, 38), (53, 11), (60, 39), (55, 13)]
 
 
-        #* for 0.3m
+        #* for 1.0m
         self.starting_positions : list[tuple[int, int]] =  [(28, 28), (49, 67), (32, 26), (38, 68)]
         self.goal_positions: list[tuple[int, int]] =       [(98, 53), (74, 15), (84, 55), (78, 18)]
+
+        grid_size = 0.3 #m #! via publisher please
+        robot_size = 1.0 #m #! config file
+
+        factor : float = robot_size / grid_size
+
+        self.starting_positions  : list[tuple[int, int]] =  [(int(np.round(x * factor)), int(np.round(y * factor))) for x, y in self.starting_positions]
+        self.goal_positions  : list[tuple[int, int]] =      [(int(np.round(x * factor)), int(np.round(y * factor))) for x, y in self.goal_positions]
+       
+
 
 
 
@@ -194,18 +204,25 @@ class WavefrontExpansionNode:
         goal_waypoint : Waypoint = Waypoint(goal_pos, float('inf'))
 
         occupied_positions : dict[tuple[float, float], list[Waypoint]] = {}
+
+        
+        bloating_time_start = time.time()
         for dynamic_obstacle in dynamic_obstacles:
             bloated_dynamic_obstacles : list[Waypoint] = self.bloat_path(dynamic_obstacle.waypoints)
             for waypoint in bloated_dynamic_obstacles:
                 occupied_positions.setdefault(waypoint.pixel_pos, []).append(waypoint)
+        bloating_time_done = time.time() 
+        rospy.loginfo(f"bloated paths. this took {bloating_time_done - bloating_time_start:.6f}s")
 
         heap: list[tuple[float, Waypoint]] = [(0, start_waypoint)]
 
         
         # Dilate the obstacles by ~1/2 of the robots size to avoid collisions
+        dilation_time_start = time.time()
         kernel = np.ones((self.kernel_size, self.kernel_size),np.uint8) #type: ignore
         bloated_static_obstacles : np.ndarray = cv2.erode(static_obstacles, kernel) #-> erosion of free space = dilation of obstacles
-
+        dilation_time_done = time.time()
+        rospy.loginfo(f"dilated map. this took {dilation_time_done-dilation_time_start:.6f}s")
 
         rows: int = bloated_static_obstacles.shape[0]
         cols: int = bloated_static_obstacles.shape[1]
@@ -219,11 +236,12 @@ class WavefrontExpansionNode:
         if self.allow_diagonals:
             neighbors += diagonal_neighbors
 
+        loop_time_start = time.time()
         iterations : int = 0
         while heap:
             iterations += 1
             current_cost, current_waypoint = heapq.heappop(heap)
-            if iterations % 1000 == 0:
+            if iterations % 10_000 == 0:
                 rospy.loginfo(f"planner {self.id}: {iterations} iterations done!")
             if iterations > 500_000:
                 rospy.logwarn(f"planner {self.id}: breaking because algorithm reached max iterations")
@@ -247,7 +265,6 @@ class WavefrontExpansionNode:
                         if current_waypoint.previous_waypoint is not None:
                             #rospy.loginfo(f"will wait at {current_waypoint.previous_waypoint.pixel_pos} until {waypoint.occupied_until}")
                             if waypoint.occupied_until == float('inf'):
-                                rospy.logwarn(f"waypoint at {current_waypoint.pixel_pos} is inf occupied")
                                 continue
                             timings[current_waypoint.pixel_pos[0], current_waypoint.pixel_pos[1]] = -1
                             heapq.heappush(heap, (waypoint.occupied_until, current_waypoint.previous_waypoint)) # we have to add a small number because of floating point issues
@@ -290,40 +307,49 @@ class WavefrontExpansionNode:
                 rospy.loginfo(f"planner {self.id}s stopping because heap queue is empty")
         
         rospy.loginfo(f"planner {self.id}: stopped after a total of {iterations} iterations")
-        end_time = time.time()
-        elapsed_time = end_time - start_time
-        rospy.loginfo(f"planner {self.id}: planned path in {elapsed_time:.3f}s.")
+        loop_end_time = time.time()
+        rospy.loginfo(f"planner {self.id}: planned path! Dijkstras main loop took {loop_end_time-loop_time_start:.6f}s")
         
 
         #* --- Reconstruct Path ---
+        pathfind_start_time = time.time()
         waypoints : list[Waypoint] = []
         current_waypoint : Waypoint | None = goal_waypoint
         while current_waypoint:
             if current_waypoint.previous_waypoint is not None:
-                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 1.5 + 1.0 # todo: define different metrics here
+                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1) * 1.3 + 1.0 # todo: define different metrics here
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
                 fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, waypoints)
-
         waypoints.reverse()
 
         bloated_waypoints : list[Waypoint] = self.bloat_path(waypoints)
-
-
         trajectory_data : TrajectoryData = TrajectoryData(self.id, waypoints)
         trajectory_data.waypoints = bloated_waypoints
+        pathfind_done_time = time.time()
+        rospy.loginfo(f"planner {self.id}: found a path. This took {pathfind_done_time-pathfind_start_time:.6f}s")
+        
+
+
 
         rospy.loginfo(f"planner {self.id}: shortest path consists of {len(waypoints)} nodes with a cost of {timings[goal_pos[0], goal_pos[1]]}")
 
         # Transform Path from Pixel-Space to World-Space for visualization and path following
+        trafo_start_time = time.time()
         transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
         for waypoint in trajectory_data.waypoints:
             response : TransformPixelToWorldResponse = transform_pixel_to_world(waypoint.pixel_pos[0], waypoint.pixel_pos[1])
             waypoint.world_pos = (response.x_world, response.y_world)
+        trafo_end_time = time.time()
+        rospy.loginfo(f"planner {self.id}: Transformed pixel data to world coordinates. This took {trafo_end_time-trafo_start_time:.6f}s")
         
         # Visualization
         fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, trajectory_data.waypoints)
+
+        end_time = time.time()
+        rospy.loginfo(f"planner {self.id} done! Took {end_time-start_time:.6f}s in total for this planner.")
+        rospy.loginfo("- - - - - - - - -")
         return trajectory_data
 
 
