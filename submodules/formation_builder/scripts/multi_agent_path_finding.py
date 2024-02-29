@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.8
 # -*- coding: utf-8 -*-
 
 
@@ -153,7 +153,7 @@ class WavefrontExpansionNode:
         # -------- CONFIG START --------
         self.allow_diagonals : bool = True
         self.check_dynamic_obstacles : bool = True
-        self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
+        self.dynamic_visualization : bool = True # publishes timing map after every step, very expensive
         self.kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
         # -------- CONFIG END --------
         
@@ -251,7 +251,7 @@ class WavefrontExpansionNode:
                 goal_waypoint = current_waypoint
                 break
             if self.dynamic_visualization:
-                fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=500)
+                fb_visualizer.draw_timings(timings, bloated_static_obstacles, start_pos, goal_pos, dynamic_obstacles=dynamic_obstacles, sleep=None)
 
             # CHECK CURRENT POSITION FOR COLLISION
             # if another robot is blocking the path, the robot waits for the path to become free. this may lead to collision with other robots that try to drive through this waiting position

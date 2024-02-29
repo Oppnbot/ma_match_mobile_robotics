@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.8
 
 from __future__ import annotations
 import rospy
@@ -32,13 +32,8 @@ class TransformationServer:
         if len(req.x_pixel) != len(req.y_pixel):
             rospy.logwarn(f"Transformation failed! must have the same ammount of x- and y-Values. x: {len(req.x_pixel)}, y: {len(req.y_pixel)}")
             return TransformPixelToWorldResponse([], [])
-        world_positions_x : list[float] = []
-        world_positions_y : list[float] = []
-        for i in range(len(req.x_pixel)):
-            world_pos_x : float = (req.y_pixel[i] + 0.5) * self.scaling_factor #move to right with +
-            world_pos_y : float = ((self.grid_size[0] - req.x_pixel[i]) - 0.5) * self.scaling_factor
-            world_positions_x.append(world_pos_x)
-            world_positions_y.append(world_pos_y)
+        world_positions_x : list[float] = [(y_pixel + 0.5) * self.scaling_factor for y_pixel in req.y_pixel]
+        world_positions_y : list[float] = [((self.grid_size[0] - x_pixel) - 0.5) * self.scaling_factor for x_pixel in req.x_pixel]
         return TransformPixelToWorldResponse(world_positions_x, world_positions_y)
     
 
