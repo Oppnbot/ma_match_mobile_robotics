@@ -338,9 +338,13 @@ class WavefrontExpansionNode:
         # Transform Path from Pixel-Space to World-Space for visualization and path following
         trafo_start_time = time.time()
         transform_pixel_to_world = rospy.ServiceProxy('pixel_to_world', TransformPixelToWorld)
-        for waypoint in trajectory_data.waypoints:
-            response : TransformPixelToWorldResponse = transform_pixel_to_world(waypoint.pixel_pos[0], waypoint.pixel_pos[1])
-            waypoint.world_pos = (response.x_world, response.y_world)
+        pixel_positions_x : list[int] = [waypoint.pixel_pos[0] for waypoint in trajectory_data.waypoints]
+        pixel_positions_y : list[int] = [waypoint.pixel_pos[1] for waypoint in trajectory_data.waypoints]
+
+        response : TransformPixelToWorldResponse = transform_pixel_to_world(pixel_positions_x, pixel_positions_y)
+        for i in range(len(response.x_world)):
+            trajectory_data.waypoints[i].world_pos = (response.x_world[i], response.y_world[i])
+
         trafo_end_time = time.time()
         rospy.loginfo(f"planner {self.id}: Transformed pixel data to world coordinates. This took {trafo_end_time-trafo_start_time:.6f}s")
         

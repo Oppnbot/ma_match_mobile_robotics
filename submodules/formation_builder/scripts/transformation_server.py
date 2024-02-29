@@ -15,7 +15,7 @@ class TransformationServer:
         #rospy.Service('pixel_to_world', WorldPos, self.pixel_to_world_callback)
         #rospy.Service('world_to_pixel', PixelPos, self.world_to_pixel_callback)
         rospy.Service('pixel_to_world', TransformPixelToWorld, self.pixel_to_world_callback)
-        rospy.Service('world_to_pixel', TransformWorldToPixel, self.world_to_pixel_callback)
+        #rospy.Service('world_to_pixel', TransformWorldToPixel, self.world_to_pixel_callback)
         self.scaling_factor : float | None = None # world res / pixel res
         self.grid_size : tuple[int, int] | None = None
         rospy.spin()
@@ -25,23 +25,31 @@ class TransformationServer:
     def pixel_to_world_callback(self, req : TransformPixelToWorldRequest) -> TransformPixelToWorldResponse:
         if self.scaling_factor is None:
             rospy.logwarn("scaling factor is None. This is likely due missing map data")
-            return TransformPixelToWorldResponse(0.0, 0.0)
+            return TransformPixelToWorldResponse([], [])
         if self.grid_size is None:
             rospy.logwarn("Grid Size is None. This is likely due missing map data")
-            return TransformPixelToWorldResponse(0.0, 0.0)
-        world_pos_x : float = (req.y_pixel + 0.5) * self.scaling_factor #move to right with +
-        world_pos_y : float = ((self.grid_size[0] - req.x_pixel) - 0.5) * self.scaling_factor
-        return TransformPixelToWorldResponse(world_pos_x, world_pos_y)
+            return TransformPixelToWorldResponse([], [])
+        if len(req.x_pixel) != len(req.y_pixel):
+            rospy.logwarn(f"Transformation failed! must have the same ammount of x- and y-Values. x: {len(req.x_pixel)}, y: {len(req.y_pixel)}")
+            return TransformPixelToWorldResponse([], [])
+        world_positions_x : list[float] = []
+        world_positions_y : list[float] = []
+        for i in range(len(req.x_pixel)):
+            world_pos_x : float = (req.y_pixel[i] + 0.5) * self.scaling_factor #move to right with +
+            world_pos_y : float = ((self.grid_size[0] - req.x_pixel[i]) - 0.5) * self.scaling_factor
+            world_positions_x.append(world_pos_x)
+            world_positions_y.append(world_pos_y)
+        return TransformPixelToWorldResponse(world_positions_x, world_positions_y)
     
 
-    def world_to_pixel_callback(self, req : TransformWorldToPixelRequest) -> TransformWorldToPixelResponse:
-        #! this function is untested and may need some testing
-        if self.scaling_factor is None:
-            rospy.logwarn("scaling factor is None. This is likely due missing map data")
-            return TransformWorldToPixelResponse(0, 0)
-        pixel_pos_x : int = np.round(req.y_world / self.scaling_factor)
-        pixel_pos_y : int = np.round(req.x_world / self.scaling_factor)
-        return TransformWorldToPixelResponse(pixel_pos_x, pixel_pos_y)
+    #def world_to_pixel_callback(self, req : TransformWorldToPixelRequest) -> TransformWorldToPixelResponse:
+    #    #! this function is untested and may need some testing
+    #    if self.scaling_factor is None:
+    #        rospy.logwarn("scaling factor is None. This is likely due missing map data")
+    #        return TransformWorldToPixelResponse(0, 0)
+    #    pixel_pos_x : int = np.round(req.y_world / self.scaling_factor)
+    #    pixel_pos_y : int = np.round(req.x_world / self.scaling_factor)
+    #    return TransformWorldToPixelResponse(pixel_pos_x, pixel_pos_y)
     
     
     def update_scaling_factor(self, grid_map : GridMap) -> None:
