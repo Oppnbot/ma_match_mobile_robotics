@@ -74,7 +74,7 @@ class Spawner:
 
         self.path_finders : list[WavefrontExpansionNode] = []
         self.cv_bridge : CvBridge = CvBridge()
-        self.occupation: dict[tuple[int, int], list[tuple[float, float]]] = {} #key: x- and y-val of the gridcell. value: list of timings with "occupied from" and "occupied until"
+        #self.occupation: dict[tuple[int, int], list[tuple[float, float]]] = {} #key: x- and y-val of the gridcell. value: list of timings with "occupied from" and "occupied until"
         for i in range(self.path_finder_count):
             self.path_finders.append(WavefrontExpansionNode(i))
         
