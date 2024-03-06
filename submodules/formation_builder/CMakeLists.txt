@@ -57,6 +57,11 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   GridMap.msg
+  PixelPos.msg
+  Waypoint.msg
+  Trajectory.msg
+  GoalPose.msg
+  Formation.msg
 )
 
 # Generate services in the 'srv' folder
@@ -77,6 +82,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   std_msgs
+  geometry_msgs
   sensor_msgs
 )
 
@@ -113,6 +119,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES formation_builder
 #  CATKIN_DEPENDS rospy std_msgs
+  CATKIN_DEPENDS roscpp std_msgs geometry_msgs message_runtime
 #  DEPENDS system_lib
 )
 

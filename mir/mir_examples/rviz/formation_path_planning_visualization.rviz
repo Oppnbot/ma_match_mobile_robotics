@@ -5,11 +5,10 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Grid1/Offset1
-        - /fb_debug_img1
+        - /fb_debug_img1/Status1
         - /MarkerArray1
-        - /Wavefront1
+        - /MarkerArray1/Status1
         - /Static_Obstacle_Overlay1
-        - /Static_Obstacle_Overlay1/Status1
       Splitter Ratio: 0.38306063413619995
     Tree Height: 941
   - Class: rviz/Selection
@@ -100,6 +99,156 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        back_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        surface:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
       Name: RobotModel - Mir2
       Robot Description: mir2/robot_description
       TF Prefix: mir2
@@ -116,6 +265,156 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        back_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        surface:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
       Name: RobotModel - Mir3
       Robot Description: mir3/robot_description
       TF Prefix: mir3
@@ -271,6 +570,210 @@ Visualization Manager:
           Value: false
         mir1/us_2_frame:
           Value: false
+        mir2/back_laser_link:
+          Value: true
+        mir2/base_footprint:
+          Value: true
+        mir2/base_link:
+          Value: true
+        mir2/bl_caster_rotation_link:
+          Value: true
+        mir2/bl_caster_wheel_link:
+          Value: true
+        mir2/br_caster_rotation_link:
+          Value: true
+        mir2/br_caster_wheel_link:
+          Value: true
+        mir2/camera_bottom_screw_frame:
+          Value: true
+        mir2/camera_color_frame:
+          Value: true
+        mir2/camera_color_optical_frame:
+          Value: true
+        mir2/camera_depth_frame:
+          Value: true
+        mir2/camera_depth_optical_frame:
+          Value: true
+        mir2/camera_infra1_frame:
+          Value: true
+        mir2/camera_infra1_optical_frame:
+          Value: true
+        mir2/camera_infra2_frame:
+          Value: true
+        mir2/camera_infra2_optical_frame:
+          Value: true
+        mir2/camera_link:
+          Value: true
+        mir2/fl_caster_rotation_link:
+          Value: true
+        mir2/fl_caster_wheel_link:
+          Value: true
+        mir2/fr_caster_rotation_link:
+          Value: true
+        mir2/fr_caster_wheel_link:
+          Value: true
+        mir2/front_laser_link:
+          Value: true
+        mir2/imu_frame:
+          Value: true
+        mir2/imu_link:
+          Value: true
+        mir2/left_match_logo_background:
+          Value: true
+        mir2/left_match_logo_font:
+          Value: true
+        mir2/left_wheel_link:
+          Value: true
+        mir2/odom:
+          Value: true
+        mir2/right_match_logo_background:
+          Value: true
+        mir2/right_match_logo_font:
+          Value: true
+        mir2/right_wheel_link:
+          Value: true
+        mir2/surface:
+          Value: true
+        mir2/us_1_frame:
+          Value: true
+        mir2/us_2_frame:
+          Value: true
+        mir3/back_laser_link:
+          Value: true
+        mir3/base_footprint:
+          Value: true
+        mir3/base_link:
+          Value: true
+        mir3/bl_caster_rotation_link:
+          Value: true
+        mir3/bl_caster_wheel_link:
+          Value: true
+        mir3/br_caster_rotation_link:
+          Value: true
+        mir3/br_caster_wheel_link:
+          Value: true
+        mir3/camera_bottom_screw_frame:
+          Value: true
+        mir3/camera_color_frame:
+          Value: true
+        mir3/camera_color_optical_frame:
+          Value: true
+        mir3/camera_depth_frame:
+          Value: true
+        mir3/camera_depth_optical_frame:
+          Value: true
+        mir3/camera_infra1_frame:
+          Value: true
+        mir3/camera_infra1_optical_frame:
+          Value: true
+        mir3/camera_infra2_frame:
+          Value: true
+        mir3/camera_infra2_optical_frame:
+          Value: true
+        mir3/camera_link:
+          Value: true
+        mir3/fl_caster_rotation_link:
+          Value: true
+        mir3/fl_caster_wheel_link:
+          Value: true
+        mir3/fr_caster_rotation_link:
+          Value: true
+        mir3/fr_caster_wheel_link:
+          Value: true
+        mir3/front_laser_link:
+          Value: true
+        mir3/imu_frame:
+          Value: true
+        mir3/imu_link:
+          Value: true
+        mir3/left_match_logo_background:
+          Value: true
+        mir3/left_match_logo_font:
+          Value: true
+        mir3/left_wheel_link:
+          Value: true
+        mir3/odom:
+          Value: true
+        mir3/right_match_logo_background:
+          Value: true
+        mir3/right_match_logo_font:
+          Value: true
+        mir3/right_wheel_link:
+          Value: true
+        mir3/surface:
+          Value: true
+        mir3/us_1_frame:
+          Value: true
+        mir3/us_2_frame:
+          Value: true
+        mir4/back_laser_link:
+          Value: true
+        mir4/base_footprint:
+          Value: true
+        mir4/base_link:
+          Value: true
+        mir4/bl_caster_rotation_link:
+          Value: true
+        mir4/bl_caster_wheel_link:
+          Value: true
+        mir4/br_caster_rotation_link:
+          Value: true
+        mir4/br_caster_wheel_link:
+          Value: true
+        mir4/camera_bottom_screw_frame:
+          Value: true
+        mir4/camera_color_frame:
+          Value: true
+        mir4/camera_color_optical_frame:
+          Value: true
+        mir4/camera_depth_frame:
+          Value: true
+        mir4/camera_depth_optical_frame:
+          Value: true
+        mir4/camera_infra1_frame:
+          Value: true
+        mir4/camera_infra1_optical_frame:
+          Value: true
+        mir4/camera_infra2_frame:
+          Value: true
+        mir4/camera_infra2_optical_frame:
+          Value: true
+        mir4/camera_link:
+          Value: true
+        mir4/fl_caster_rotation_link:
+          Value: true
+        mir4/fl_caster_wheel_link:
+          Value: true
+        mir4/fr_caster_rotation_link:
+          Value: true
+        mir4/fr_caster_wheel_link:
+          Value: true
+        mir4/front_laser_link:
+          Value: true
+        mir4/imu_frame:
+          Value: true
+        mir4/imu_link:
+          Value: true
+        mir4/left_match_logo_background:
+          Value: true
+        mir4/left_match_logo_font:
+          Value: true
+        mir4/left_wheel_link:
+          Value: true
+        mir4/odom:
+          Value: true
+        mir4/right_match_logo_background:
+          Value: true
+        mir4/right_match_logo_font:
+          Value: true
+        mir4/right_wheel_link:
+          Value: true
+        mir4/surface:
+          Value: true
+        mir4/us_1_frame:
+          Value: true
+        mir4/us_2_frame:
+          Value: true
       Marker Alpha: 1
       Marker Scale: 1
       Name: TF
@@ -330,6 +833,162 @@ Visualization Manager:
                 mir1/us_1_frame:
                   {}
                 mir1/us_2_frame:
+                  {}
+          mir2/odom:
+            mir2/base_footprint:
+              mir2/base_link:
+                mir2/back_laser_link:
+                  {}
+                mir2/bl_caster_rotation_link:
+                  mir2/bl_caster_wheel_link:
+                    {}
+                mir2/br_caster_rotation_link:
+                  mir2/br_caster_wheel_link:
+                    {}
+                mir2/camera_bottom_screw_frame:
+                  mir2/camera_link:
+                    mir2/camera_color_frame:
+                      mir2/camera_color_optical_frame:
+                        {}
+                    mir2/camera_depth_frame:
+                      mir2/camera_depth_optical_frame:
+                        {}
+                    mir2/camera_infra1_frame:
+                      mir2/camera_infra1_optical_frame:
+                        {}
+                    mir2/camera_infra2_frame:
+                      mir2/camera_infra2_optical_frame:
+                        {}
+                mir2/fl_caster_rotation_link:
+                  mir2/fl_caster_wheel_link:
+                    {}
+                mir2/fr_caster_rotation_link:
+                  mir2/fr_caster_wheel_link:
+                    {}
+                mir2/front_laser_link:
+                  {}
+                mir2/imu_link:
+                  mir2/imu_frame:
+                    {}
+                mir2/left_match_logo_background:
+                  mir2/left_match_logo_font:
+                    {}
+                mir2/left_wheel_link:
+                  {}
+                mir2/right_match_logo_background:
+                  mir2/right_match_logo_font:
+                    {}
+                mir2/right_wheel_link:
+                  {}
+                mir2/surface:
+                  {}
+                mir2/us_1_frame:
+                  {}
+                mir2/us_2_frame:
+                  {}
+          mir3/odom:
+            mir3/base_footprint:
+              mir3/base_link:
+                mir3/back_laser_link:
+                  {}
+                mir3/bl_caster_rotation_link:
+                  mir3/bl_caster_wheel_link:
+                    {}
+                mir3/br_caster_rotation_link:
+                  mir3/br_caster_wheel_link:
+                    {}
+                mir3/camera_bottom_screw_frame:
+                  mir3/camera_link:
+                    mir3/camera_color_frame:
+                      mir3/camera_color_optical_frame:
+                        {}
+                    mir3/camera_depth_frame:
+                      mir3/camera_depth_optical_frame:
+                        {}
+                    mir3/camera_infra1_frame:
+                      mir3/camera_infra1_optical_frame:
+                        {}
+                    mir3/camera_infra2_frame:
+                      mir3/camera_infra2_optical_frame:
+                        {}
+                mir3/fl_caster_rotation_link:
+                  mir3/fl_caster_wheel_link:
+                    {}
+                mir3/fr_caster_rotation_link:
+                  mir3/fr_caster_wheel_link:
+                    {}
+                mir3/front_laser_link:
+                  {}
+                mir3/imu_link:
+                  mir3/imu_frame:
+                    {}
+                mir3/left_match_logo_background:
+                  mir3/left_match_logo_font:
+                    {}
+                mir3/left_wheel_link:
+                  {}
+                mir3/right_match_logo_background:
+                  mir3/right_match_logo_font:
+                    {}
+                mir3/right_wheel_link:
+                  {}
+                mir3/surface:
+                  {}
+                mir3/us_1_frame:
+                  {}
+                mir3/us_2_frame:
+                  {}
+          mir4/odom:
+            mir4/base_footprint:
+              mir4/base_link:
+                mir4/back_laser_link:
+                  {}
+                mir4/bl_caster_rotation_link:
+                  mir4/bl_caster_wheel_link:
+                    {}
+                mir4/br_caster_rotation_link:
+                  mir4/br_caster_wheel_link:
+                    {}
+                mir4/camera_bottom_screw_frame:
+                  mir4/camera_link:
+                    mir4/camera_color_frame:
+                      mir4/camera_color_optical_frame:
+                        {}
+                    mir4/camera_depth_frame:
+                      mir4/camera_depth_optical_frame:
+                        {}
+                    mir4/camera_infra1_frame:
+                      mir4/camera_infra1_optical_frame:
+                        {}
+                    mir4/camera_infra2_frame:
+                      mir4/camera_infra2_optical_frame:
+                        {}
+                mir4/fl_caster_rotation_link:
+                  mir4/fl_caster_wheel_link:
+                    {}
+                mir4/fr_caster_rotation_link:
+                  mir4/fr_caster_wheel_link:
+                    {}
+                mir4/front_laser_link:
+                  {}
+                mir4/imu_link:
+                  mir4/imu_frame:
+                    {}
+                mir4/left_match_logo_background:
+                  mir4/left_match_logo_font:
+                    {}
+                mir4/left_wheel_link:
+                  {}
+                mir4/right_match_logo_background:
+                  mir4/right_match_logo_font:
+                    {}
+                mir4/right_wheel_link:
+                  {}
+                mir4/surface:
+                  {}
+                mir4/us_1_frame:
+                  {}
+                mir4/us_2_frame:
                   {}
       Update Interval: 0
       Value: true
@@ -419,7 +1078,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /visualization_markers
+      Marker Topic: /formation_builder/visualization_markers
       Name: MarkerArray
       Namespaces:
         formation_builder: true
@@ -476,7 +1135,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 108.76815032958984
+      Distance: 17.316051483154297
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -484,17 +1143,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 41.99441146850586
-        Y: 21.966312408447266
+        X: 25.519744873046875
+        Y: 27.710411071777344
         Z: -5.272935231914744e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1197967529296875
+      Pitch: 0.9402028322219849
       Target Frame: <Fixed Frame>
-      Yaw: 4.7367472648620605
+      Yaw: 2.646714210510254
     Saved: ~
 Window Geometry:
   Displays:

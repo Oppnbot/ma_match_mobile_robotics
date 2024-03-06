@@ -7,7 +7,7 @@ import numpy as np
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import colorsys
-from commons import TrajectoryData, Waypoint
+from formation_builder.msg import Trajectory, Waypoint
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import time
@@ -70,11 +70,14 @@ class Visualization():
         return image_matrix
 
 
-    def draw_path(self, trajectory_data : TrajectoryData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
+    def draw_path(self, trajectory : Trajectory, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        color = self.generate_distinct_colors(number_of_agents, trajectory_data.planner_id, value=0.7)
-        for waypoint in trajectory_data.waypoints:
+        color = self.generate_distinct_colors(number_of_agents, trajectory.planner_id, value=0.7)
+        if trajectory.path is None:
+            rospy.logwarn(f"[Visualization] Can't draw path for robot {trajectory.planner_id} since there is no path specified.")
+            return image_matrix
+        for waypoint in trajectory.path:
             current_val = image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]]
             if all(x == 0 or x == 255 for x in current_val):
                 image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = color
@@ -86,15 +89,15 @@ class Visualization():
         return image_matrix
     
 
-    def draw_start_and_goal(self, trajectory_data : TrajectoryData, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
+    def draw_start_and_goal(self, trajectory : Trajectory, number_of_agents : int, image_matrix:np.ndarray|None = None) -> np.ndarray:
         if image_matrix is None:
             image_matrix = self.current_image_data
-        if trajectory_data.goal is None or trajectory_data.start is None:
-            rospy.logwarn(f"Can't draw start and stop positions for planner {trajectory_data.planner_id} since they are None")
+        if trajectory.goal_waypoint is None or trajectory.start_waypoint is None:
+            rospy.logwarn(f"[Visualization] Can't draw start and stop positions for planner {trajectory.planner_id} since they are None")
             return image_matrix
-        color = self.generate_distinct_colors(number_of_agents, trajectory_data.planner_id)
-        image_matrix[trajectory_data.goal.pixel_pos[0], trajectory_data.goal.pixel_pos[1]] = color
-        image_matrix[trajectory_data.start.pixel_pos[0], trajectory_data.start.pixel_pos[1]] = color
+        color = self.generate_distinct_colors(number_of_agents, trajectory.planner_id)
+        image_matrix[trajectory.goal_waypoint.pixel_position.x, trajectory.goal_waypoint.pixel_position.y] = color
+        image_matrix[trajectory.start_waypoint.pixel_position.x, trajectory.start_waypoint.pixel_position.y] = color
         self.current_image_data = image_matrix
         return image_matrix
     
@@ -113,7 +116,7 @@ class Visualization():
 
 
     
-    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints: list[Waypoint] = [], dynamic_obstacles: list[TrajectoryData] = [], sleep : int | None = None) -> None:
+    def draw_timings(self, grid: np.ndarray, obstacles: np.ndarray, start: tuple[int, int], goal: tuple[int, int], waypoints: list[Waypoint] = [], dynamic_obstacles: list[Trajectory] = [], sleep : int | None = None) -> None:
         min_val = np.min(grid)
         max_val = np.max(grid)
 
@@ -130,13 +133,16 @@ class Visualization():
 
         # dynamic obstacles:
         for dynamic_obstacle in dynamic_obstacles:
-            for waypoint in dynamic_obstacle.waypoints:
+            if dynamic_obstacle.path is None:
+                continue
+            for wp in dynamic_obstacle.path:
+                waypoint : Waypoint = wp
                 if waypoint.occupied_from < max_val < waypoint.occupied_until:
-                    image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = [125, 125, 125]
+                    image_matrix[waypoint.pixel_position.x, waypoint.pixel_position.y] = [125, 125, 125]
 
         # path:
         for waypoint in waypoints:
-            image_matrix[waypoint.pixel_pos[0], waypoint.pixel_pos[1]] = [0, 125 , 0]
+            image_matrix[waypoint.pixel_position.x, waypoint.pixel_position.y] = [0, 125 , 0]
         
         # Plot start and goal points
         image_matrix[goal[0], goal[1]] = [255, 0, 0]
@@ -144,7 +150,7 @@ class Visualization():
 
         # Publish the image
         image_msg = self.cv_bridge.cv2_to_imgmsg(image_matrix, encoding="rgb8")
-        timing_pub = rospy.Publisher("/timing_image", Image, queue_size=20, latch=True)
+        timing_pub = rospy.Publisher("/formation_builder/timing_image", Image, queue_size=20, latch=True)
         timing_pub.publish(image_msg)
 
         if sleep is not None:
@@ -154,40 +160,41 @@ class Visualization():
     
 
 
-    def show_live_path(self, trajectories : list[TrajectoryData]) -> None:
+    def show_live_path(self, trajectories : list[Trajectory]) -> None:
         if trajectories is None:
-            rospy.logwarn("Can't visualize live path, since there are no trajectories to visualize!")
+            rospy.logwarn("[Visualization] Can't visualize live path, since there are no trajectories to visualize!")
             return None
         refresh_rate : int = 50 #hz
         rate: rospy.Rate = rospy.Rate(refresh_rate)
 
         elapsed_time : float = 0
         start_time : float = time.time()
-        time_factor : float = 10.0 # used to speed up sim
+        time_factor : float = 3.0 # used to speed up sim
 
         # calculate the simulation time by finding the last valid timestamp before reaching goal for all trajectories
         last_goal_timestamp : float = 0.0
         for trajectory in trajectories:
-            if trajectory.goal is None:
+            if trajectory.goal_waypoint is None:
                 continue
-            waypoint : Waypoint | None = trajectory.goal
-            while waypoint is not None:
-                if waypoint.occupied_until != float('inf'): # valid timestamp
-                    if waypoint.occupied_until > last_goal_timestamp:
-                        last_goal_timestamp = waypoint.occupied_until
-                    break
-                waypoint = waypoint.previous_waypoint
+            if trajectory.occupied_positions is None:
+                continue
+
+            for waypoint in trajectory.occupied_positions:
+                if waypoint is None:
+                    continue
+                if float('inf') > waypoint.occupied_until > last_goal_timestamp:
+                    last_goal_timestamp = waypoint.occupied_until
 
         if last_goal_timestamp == float('inf') or last_goal_timestamp <= 0:
-            rospy.logwarn(f"Trying to simulate for {last_goal_timestamp} ammount of time; will stop after 120s instead.")
+            rospy.logwarn(f"[Visualization] Trying to simulate for {last_goal_timestamp} ammount of time; will stop after 120s instead.")
             last_goal_timestamp = 120
 
-        rospy.loginfo(f"live visualization starting, simulating {last_goal_timestamp}s at a speed of {time_factor}...")
+        rospy.loginfo(f"[Visualization] live visualization starting, simulating {last_goal_timestamp}s at a speed of {time_factor}...")
 
-        while elapsed_time < last_goal_timestamp:
+        while elapsed_time < last_goal_timestamp +:
             marker_array : MarkerArray = MarkerArray()
             marker_array.markers = []
-            marker_pub = rospy.Publisher('visualization_markers', MarkerArray, queue_size=10, latch=True)
+            marker_pub = rospy.Publisher('/formation_builder/visualization_markers', MarkerArray, queue_size=10, latch=True)
             
 
             for trajectory in trajectories:
@@ -199,7 +206,8 @@ class Visualization():
                     marker.id = trajectory.planner_id
                     marker.type = Marker.CUBE_LIST
                     marker.action = Marker.ADD
-                    marker.lifetime = rospy.Duration(0, int(1_000_000_000 / time_factor))
+                    #marker.lifetime = rospy.Duration(0, int(1_000_000_000 / time_factor))
+                    marker.lifetime = rospy.Duration(10, 0)
 
                     marker.pose.orientation.w = 1.0
                     marker.pose.orientation.x = 0.0
@@ -210,17 +218,19 @@ class Visualization():
                         marker.scale.x = self.grid_map.resolution_grid
                         marker.scale.y = self.grid_map.resolution_grid
                     else:
-                        rospy.logwarn("Grid Resolution is unknown. Assuming 1m / grid cell")
+                        rospy.logwarn("[Visualization] Grid Resolution is unknown. Assuming 1m / grid cell")
                         marker.scale.x = 1.0
                         marker.scale.y = 1.0
                     marker.scale.z = 0.1
                     marker.points = []
                     path_color = self.generate_distinct_colors(len(trajectories), trajectory.planner_id, value=0.7)
-                    marker.color.r = path_color[0]/255
-                    marker.color.g = path_color[1]/255
-                    marker.color.b = path_color[2]/255
+                    marker.color.r = float(path_color[0] / 255)
+                    marker.color.g = float(path_color[1] / 255)
+                    marker.color.b = float(path_color[2] / 255)
                     marker.color.a = 0.7 # alpha value for transparancy
                     return marker
+                if trajectory.occupied_positions is None:
+                    continue
                 
                 robot_marker: Marker = create_marker()
                 path_marker: Marker = create_marker()
@@ -230,12 +240,13 @@ class Visualization():
                 robot_marker.points = []
                 path_marker.points = []
 
-                for waypoint in trajectory.waypoints:
-                    if waypoint.world_pos is None:
+                for wp in trajectory.occupied_positions:
+                    waypoint : Waypoint = wp
+                    if waypoint.world_position is None:
                         continue
                     point : Point = Point()
-                    point.x = waypoint.world_pos[0]
-                    point.y = waypoint.world_pos[1]
+                    point.x = waypoint.world_position.position.x
+                    point.y = waypoint.world_position.position.y
                     point.z = 0.05
                     if waypoint.occupied_from < elapsed_time < waypoint.occupied_until:
                         robot_marker.points.append(point)
@@ -251,7 +262,7 @@ class Visualization():
             rate.sleep()
             elapsed_time = (time.time() - start_time) * time_factor
             #rospy.loginfo(f"simulated {elapsed_time}s")
-        rospy.loginfo("live visualization done!")
+        rospy.loginfo("[Visualization] live visualization done!")
         return None
 
     
