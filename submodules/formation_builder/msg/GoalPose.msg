@@ -1,3 +1,0 @@
-int32 planner_id
-geometry_msgs/Pose goal
-float32 robot_size

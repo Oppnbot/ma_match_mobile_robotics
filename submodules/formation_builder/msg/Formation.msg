@@ -1,1 +1,0 @@
-GoalPose[] goal_poses
