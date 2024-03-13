@@ -169,7 +169,7 @@ class Visualization():
 
         elapsed_time : float = 0
         start_time : float = time.time()
-        time_factor : float = 3.0 # used to speed up sim
+        time_factor : float = 1.0 # used to speed up sim
 
         # calculate the simulation time by finding the last valid timestamp before reaching goal for all trajectories
         last_goal_timestamp : float = 0.0
@@ -191,7 +191,7 @@ class Visualization():
 
         rospy.loginfo(f"[Visualization] live visualization starting, simulating {last_goal_timestamp}s at a speed of {time_factor}...")
 
-        while elapsed_time < last_goal_timestamp +:
+        while elapsed_time < last_goal_timestamp + 1:
             marker_array : MarkerArray = MarkerArray()
             marker_array.markers = []
             marker_pub = rospy.Publisher('/formation_builder/visualization_markers', MarkerArray, queue_size=10, latch=True)

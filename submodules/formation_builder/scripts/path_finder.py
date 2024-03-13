@@ -94,12 +94,13 @@ class PathFinder:
         self.check_dynamic_obstacles : bool = True
         self.dynamic_visualization : bool = False # publishes timing map after every step, very expensive
         self.kernel_size : int = 3 #!kernel size -> defines the safety margins for dynamic and static obstacles; grid_size * kernel_size = robot_size
+        self.speed : float = 0.5
         # -------- CONFIG END --------
         
         self.id: int = planner_id
         self.robot_pose : Pose | None = None
         rospy.Subscriber(f'/mir{self.id}/mir_pose_simple', Pose, self.update_pose)
-        self.trajectory_publisher : rospy.Publisher = rospy.Publisher('formation_builder/trajectory', Trajectory, queue_size=10, latch=True)
+        #self.trajectory_publisher : rospy.Publisher = rospy.Publisher('formation_builder/trajectory', Trajectory, queue_size=10, latch=True)
         return None
 
 
@@ -212,7 +213,7 @@ class PathFinder:
             neighbors += diagonal_neighbors
         if self.allow_knight_moves:
             neighbors += knight_neighbors
-        neighbor_costs : list[float] = [np.hypot(x, y) for x, y in neighbors]
+        neighbor_costs : list[float] = [np.hypot(x, y) / self.speed for x, y in neighbors]
 
         loop_time_start = time.time()
         iterations : int = 0
@@ -296,7 +297,7 @@ class PathFinder:
         current_waypoint : Waypoint | None = goal_waypoint
         while current_waypoint:
             if current_waypoint.previous_waypoint is not None:
-                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1)* 1.1 + 1.0 # todo: define different metrics here #*1.3+1.0
+                current_waypoint.previous_waypoint.occupied_until = (current_waypoint.occupied_from + 1)* 1.2 + 3.0 # todo: define different metrics here #*1.3+1.0
             waypoints.append(current_waypoint)
             current_waypoint = current_waypoint.previous_waypoint
             if self.dynamic_visualization:
@@ -347,7 +348,7 @@ class PathFinder:
         occupied_positions_msgs : list[WaypointMsg] = [waypoint.convert_to_msg() for waypoint in bloated_waypoints]
         trajectory.path = path_msgs
         trajectory.occupied_positions = occupied_positions_msgs
-        self.trajectory_publisher.publish(trajectory)
+        #self.trajectory_publisher.publish(trajectory)
 
         end_time = time.time()
         rospy.loginfo(f"[Planner {self.id}] Done! Took {end_time-start_time:.6f}s in total for this planner.")

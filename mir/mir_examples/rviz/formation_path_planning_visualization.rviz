@@ -5,11 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Grid1/Offset1
-        - /fb_debug_img1/Status1
-        - /MarkerArray1
-        - /MarkerArray1/Status1
-        - /Static_Obstacle_Overlay1
-      Splitter Ratio: 0.38306063413619995
+      Splitter Ratio: 0.40529248118400574
     Tree Height: 941
   - Class: rviz/Selection
     Name: Selection
@@ -76,18 +72,168 @@ Visualization Manager:
     - Alpha: 1
       Class: rviz/RobotModel
       Collision Enabled: false
-      Enabled: false
+      Enabled: true
       Links:
         All Links Enabled: true
         Expand Joint Details: false
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
+        back_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        surface:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
       Name: RobotModel - Mir1
       Robot Description: mir1/robot_description
       TF Prefix: mir1
       Update Interval: 0
-      Value: false
+      Value: true
       Visual Enabled: true
     - Alpha: 1
       Class: rviz/RobotModel
@@ -422,10 +568,176 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Alpha: 1
+      Class: rviz/RobotModel
+      Collision Enabled: false
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        back_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        bl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        br_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        camera_bottom_screw_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_color_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_depth_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra1_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_infra2_optical_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fl_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_rotation_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        fr_caster_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_laser_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        imu_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        left_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        left_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_background:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_match_logo_font:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        right_wheel_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        surface:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_1_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        us_2_frame:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+      Name: RobotModel - Mir3
+      Robot Description: mir4/robot_description
+      TF Prefix: mir4
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 78; 154; 6
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -444,12 +756,12 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /mir1/robot_path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 32; 74; 135
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -468,12 +780,12 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /mir2/robot_path
       Unreliable: false
-      Value: false
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz/Path
       Color: 164; 0; 0
-      Enabled: false
+      Enabled: true
       Head Diameter: 0.30000001192092896
       Head Length: 0.20000000298023224
       Length: 0.30000001192092896
@@ -492,505 +804,6 @@ Visualization Manager:
       Shaft Length: 0.10000000149011612
       Topic: /mir3/robot_path
       Unreliable: false
-      Value: false
-    - Class: rviz/TF
-      Enabled: true
-      Filter (blacklist): ""
-      Filter (whitelist): ""
-      Frame Timeout: 15
-      Frames:
-        All Enabled: false
-        map:
-          Value: false
-        mir1/back_laser_link:
-          Value: false
-        mir1/base_footprint:
-          Value: true
-        mir1/base_link:
-          Value: false
-        mir1/bl_caster_rotation_link:
-          Value: false
-        mir1/bl_caster_wheel_link:
-          Value: false
-        mir1/br_caster_rotation_link:
-          Value: false
-        mir1/br_caster_wheel_link:
-          Value: false
-        mir1/camera_bottom_screw_frame:
-          Value: false
-        mir1/camera_color_frame:
-          Value: false
-        mir1/camera_color_optical_frame:
-          Value: false
-        mir1/camera_depth_frame:
-          Value: false
-        mir1/camera_depth_optical_frame:
-          Value: false
-        mir1/camera_infra1_frame:
-          Value: false
-        mir1/camera_infra1_optical_frame:
-          Value: false
-        mir1/camera_infra2_frame:
-          Value: false
-        mir1/camera_infra2_optical_frame:
-          Value: false
-        mir1/camera_link:
-          Value: false
-        mir1/fl_caster_rotation_link:
-          Value: false
-        mir1/fl_caster_wheel_link:
-          Value: false
-        mir1/fr_caster_rotation_link:
-          Value: false
-        mir1/fr_caster_wheel_link:
-          Value: false
-        mir1/front_laser_link:
-          Value: false
-        mir1/imu_frame:
-          Value: false
-        mir1/imu_link:
-          Value: false
-        mir1/left_match_logo_background:
-          Value: false
-        mir1/left_match_logo_font:
-          Value: false
-        mir1/left_wheel_link:
-          Value: false
-        mir1/odom:
-          Value: false
-        mir1/right_match_logo_background:
-          Value: false
-        mir1/right_match_logo_font:
-          Value: false
-        mir1/right_wheel_link:
-          Value: false
-        mir1/surface:
-          Value: false
-        mir1/us_1_frame:
-          Value: false
-        mir1/us_2_frame:
-          Value: false
-        mir2/back_laser_link:
-          Value: true
-        mir2/base_footprint:
-          Value: true
-        mir2/base_link:
-          Value: true
-        mir2/bl_caster_rotation_link:
-          Value: true
-        mir2/bl_caster_wheel_link:
-          Value: true
-        mir2/br_caster_rotation_link:
-          Value: true
-        mir2/br_caster_wheel_link:
-          Value: true
-        mir2/camera_bottom_screw_frame:
-          Value: true
-        mir2/camera_color_frame:
-          Value: true
-        mir2/camera_color_optical_frame:
-          Value: true
-        mir2/camera_depth_frame:
-          Value: true
-        mir2/camera_depth_optical_frame:
-          Value: true
-        mir2/camera_infra1_frame:
-          Value: true
-        mir2/camera_infra1_optical_frame:
-          Value: true
-        mir2/camera_infra2_frame:
-          Value: true
-        mir2/camera_infra2_optical_frame:
-          Value: true
-        mir2/camera_link:
-          Value: true
-        mir2/fl_caster_rotation_link:
-          Value: true
-        mir2/fl_caster_wheel_link:
-          Value: true
-        mir2/fr_caster_rotation_link:
-          Value: true
-        mir2/fr_caster_wheel_link:
-          Value: true
-        mir2/front_laser_link:
-          Value: true
-        mir2/imu_frame:
-          Value: true
-        mir2/imu_link:
-          Value: true
-        mir2/left_match_logo_background:
-          Value: true
-        mir2/left_match_logo_font:
-          Value: true
-        mir2/left_wheel_link:
-          Value: true
-        mir2/odom:
-          Value: true
-        mir2/right_match_logo_background:
-          Value: true
-        mir2/right_match_logo_font:
-          Value: true
-        mir2/right_wheel_link:
-          Value: true
-        mir2/surface:
-          Value: true
-        mir2/us_1_frame:
-          Value: true
-        mir2/us_2_frame:
-          Value: true
-        mir3/back_laser_link:
-          Value: true
-        mir3/base_footprint:
-          Value: true
-        mir3/base_link:
-          Value: true
-        mir3/bl_caster_rotation_link:
-          Value: true
-        mir3/bl_caster_wheel_link:
-          Value: true
-        mir3/br_caster_rotation_link:
-          Value: true
-        mir3/br_caster_wheel_link:
-          Value: true
-        mir3/camera_bottom_screw_frame:
-          Value: true
-        mir3/camera_color_frame:
-          Value: true
-        mir3/camera_color_optical_frame:
-          Value: true
-        mir3/camera_depth_frame:
-          Value: true
-        mir3/camera_depth_optical_frame:
-          Value: true
-        mir3/camera_infra1_frame:
-          Value: true
-        mir3/camera_infra1_optical_frame:
-          Value: true
-        mir3/camera_infra2_frame:
-          Value: true
-        mir3/camera_infra2_optical_frame:
-          Value: true
-        mir3/camera_link:
-          Value: true
-        mir3/fl_caster_rotation_link:
-          Value: true
-        mir3/fl_caster_wheel_link:
-          Value: true
-        mir3/fr_caster_rotation_link:
-          Value: true
-        mir3/fr_caster_wheel_link:
-          Value: true
-        mir3/front_laser_link:
-          Value: true
-        mir3/imu_frame:
-          Value: true
-        mir3/imu_link:
-          Value: true
-        mir3/left_match_logo_background:
-          Value: true
-        mir3/left_match_logo_font:
-          Value: true
-        mir3/left_wheel_link:
-          Value: true
-        mir3/odom:
-          Value: true
-        mir3/right_match_logo_background:
-          Value: true
-        mir3/right_match_logo_font:
-          Value: true
-        mir3/right_wheel_link:
-          Value: true
-        mir3/surface:
-          Value: true
-        mir3/us_1_frame:
-          Value: true
-        mir3/us_2_frame:
-          Value: true
-        mir4/back_laser_link:
-          Value: true
-        mir4/base_footprint:
-          Value: true
-        mir4/base_link:
-          Value: true
-        mir4/bl_caster_rotation_link:
-          Value: true
-        mir4/bl_caster_wheel_link:
-          Value: true
-        mir4/br_caster_rotation_link:
-          Value: true
-        mir4/br_caster_wheel_link:
-          Value: true
-        mir4/camera_bottom_screw_frame:
-          Value: true
-        mir4/camera_color_frame:
-          Value: true
-        mir4/camera_color_optical_frame:
-          Value: true
-        mir4/camera_depth_frame:
-          Value: true
-        mir4/camera_depth_optical_frame:
-          Value: true
-        mir4/camera_infra1_frame:
-          Value: true
-        mir4/camera_infra1_optical_frame:
-          Value: true
-        mir4/camera_infra2_frame:
-          Value: true
-        mir4/camera_infra2_optical_frame:
-          Value: true
-        mir4/camera_link:
-          Value: true
-        mir4/fl_caster_rotation_link:
-          Value: true
-        mir4/fl_caster_wheel_link:
-          Value: true
-        mir4/fr_caster_rotation_link:
-          Value: true
-        mir4/fr_caster_wheel_link:
-          Value: true
-        mir4/front_laser_link:
-          Value: true
-        mir4/imu_frame:
-          Value: true
-        mir4/imu_link:
-          Value: true
-        mir4/left_match_logo_background:
-          Value: true
-        mir4/left_match_logo_font:
-          Value: true
-        mir4/left_wheel_link:
-          Value: true
-        mir4/odom:
-          Value: true
-        mir4/right_match_logo_background:
-          Value: true
-        mir4/right_match_logo_font:
-          Value: true
-        mir4/right_wheel_link:
-          Value: true
-        mir4/surface:
-          Value: true
-        mir4/us_1_frame:
-          Value: true
-        mir4/us_2_frame:
-          Value: true
-      Marker Alpha: 1
-      Marker Scale: 1
-      Name: TF
-      Show Arrows: true
-      Show Axes: true
-      Show Names: true
-      Tree:
-        map:
-          mir1/odom:
-            mir1/base_footprint:
-              mir1/base_link:
-                mir1/back_laser_link:
-                  {}
-                mir1/bl_caster_rotation_link:
-                  mir1/bl_caster_wheel_link:
-                    {}
-                mir1/br_caster_rotation_link:
-                  mir1/br_caster_wheel_link:
-                    {}
-                mir1/camera_bottom_screw_frame:
-                  mir1/camera_link:
-                    mir1/camera_color_frame:
-                      mir1/camera_color_optical_frame:
-                        {}
-                    mir1/camera_depth_frame:
-                      mir1/camera_depth_optical_frame:
-                        {}
-                    mir1/camera_infra1_frame:
-                      mir1/camera_infra1_optical_frame:
-                        {}
-                    mir1/camera_infra2_frame:
-                      mir1/camera_infra2_optical_frame:
-                        {}
-                mir1/fl_caster_rotation_link:
-                  mir1/fl_caster_wheel_link:
-                    {}
-                mir1/fr_caster_rotation_link:
-                  mir1/fr_caster_wheel_link:
-                    {}
-                mir1/front_laser_link:
-                  {}
-                mir1/imu_link:
-                  mir1/imu_frame:
-                    {}
-                mir1/left_match_logo_background:
-                  mir1/left_match_logo_font:
-                    {}
-                mir1/left_wheel_link:
-                  {}
-                mir1/right_match_logo_background:
-                  mir1/right_match_logo_font:
-                    {}
-                mir1/right_wheel_link:
-                  {}
-                mir1/surface:
-                  {}
-                mir1/us_1_frame:
-                  {}
-                mir1/us_2_frame:
-                  {}
-          mir2/odom:
-            mir2/base_footprint:
-              mir2/base_link:
-                mir2/back_laser_link:
-                  {}
-                mir2/bl_caster_rotation_link:
-                  mir2/bl_caster_wheel_link:
-                    {}
-                mir2/br_caster_rotation_link:
-                  mir2/br_caster_wheel_link:
-                    {}
-                mir2/camera_bottom_screw_frame:
-                  mir2/camera_link:
-                    mir2/camera_color_frame:
-                      mir2/camera_color_optical_frame:
-                        {}
-                    mir2/camera_depth_frame:
-                      mir2/camera_depth_optical_frame:
-                        {}
-                    mir2/camera_infra1_frame:
-                      mir2/camera_infra1_optical_frame:
-                        {}
-                    mir2/camera_infra2_frame:
-                      mir2/camera_infra2_optical_frame:
-                        {}
-                mir2/fl_caster_rotation_link:
-                  mir2/fl_caster_wheel_link:
-                    {}
-                mir2/fr_caster_rotation_link:
-                  mir2/fr_caster_wheel_link:
-                    {}
-                mir2/front_laser_link:
-                  {}
-                mir2/imu_link:
-                  mir2/imu_frame:
-                    {}
-                mir2/left_match_logo_background:
-                  mir2/left_match_logo_font:
-                    {}
-                mir2/left_wheel_link:
-                  {}
-                mir2/right_match_logo_background:
-                  mir2/right_match_logo_font:
-                    {}
-                mir2/right_wheel_link:
-                  {}
-                mir2/surface:
-                  {}
-                mir2/us_1_frame:
-                  {}
-                mir2/us_2_frame:
-                  {}
-          mir3/odom:
-            mir3/base_footprint:
-              mir3/base_link:
-                mir3/back_laser_link:
-                  {}
-                mir3/bl_caster_rotation_link:
-                  mir3/bl_caster_wheel_link:
-                    {}
-                mir3/br_caster_rotation_link:
-                  mir3/br_caster_wheel_link:
-                    {}
-                mir3/camera_bottom_screw_frame:
-                  mir3/camera_link:
-                    mir3/camera_color_frame:
-                      mir3/camera_color_optical_frame:
-                        {}
-                    mir3/camera_depth_frame:
-                      mir3/camera_depth_optical_frame:
-                        {}
-                    mir3/camera_infra1_frame:
-                      mir3/camera_infra1_optical_frame:
-                        {}
-                    mir3/camera_infra2_frame:
-                      mir3/camera_infra2_optical_frame:
-                        {}
-                mir3/fl_caster_rotation_link:
-                  mir3/fl_caster_wheel_link:
-                    {}
-                mir3/fr_caster_rotation_link:
-                  mir3/fr_caster_wheel_link:
-                    {}
-                mir3/front_laser_link:
-                  {}
-                mir3/imu_link:
-                  mir3/imu_frame:
-                    {}
-                mir3/left_match_logo_background:
-                  mir3/left_match_logo_font:
-                    {}
-                mir3/left_wheel_link:
-                  {}
-                mir3/right_match_logo_background:
-                  mir3/right_match_logo_font:
-                    {}
-                mir3/right_wheel_link:
-                  {}
-                mir3/surface:
-                  {}
-                mir3/us_1_frame:
-                  {}
-                mir3/us_2_frame:
-                  {}
-          mir4/odom:
-            mir4/base_footprint:
-              mir4/base_link:
-                mir4/back_laser_link:
-                  {}
-                mir4/bl_caster_rotation_link:
-                  mir4/bl_caster_wheel_link:
-                    {}
-                mir4/br_caster_rotation_link:
-                  mir4/br_caster_wheel_link:
-                    {}
-                mir4/camera_bottom_screw_frame:
-                  mir4/camera_link:
-                    mir4/camera_color_frame:
-                      mir4/camera_color_optical_frame:
-                        {}
-                    mir4/camera_depth_frame:
-                      mir4/camera_depth_optical_frame:
-                        {}
-                    mir4/camera_infra1_frame:
-                      mir4/camera_infra1_optical_frame:
-                        {}
-                    mir4/camera_infra2_frame:
-                      mir4/camera_infra2_optical_frame:
-                        {}
-                mir4/fl_caster_rotation_link:
-                  mir4/fl_caster_wheel_link:
-                    {}
-                mir4/fr_caster_rotation_link:
-                  mir4/fr_caster_wheel_link:
-                    {}
-                mir4/front_laser_link:
-                  {}
-                mir4/imu_link:
-                  mir4/imu_frame:
-                    {}
-                mir4/left_match_logo_background:
-                  mir4/left_match_logo_font:
-                    {}
-                mir4/left_wheel_link:
-                  {}
-                mir4/right_match_logo_background:
-                  mir4/right_match_logo_font:
-                    {}
-                mir4/right_wheel_link:
-                  {}
-                mir4/surface:
-                  {}
-                mir4/us_1_frame:
-                  {}
-                mir4/us_2_frame:
-                  {}
-      Update Interval: 0
       Value: true
     - Alpha: 1
       Buffer Length: 1
@@ -1028,7 +841,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Min Color: 0; 0; 0
@@ -1043,7 +856,7 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Alpha: 0.699999988079071
       Class: rviz/Map
       Color Scheme: map
@@ -1135,7 +948,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 17.316051483154297
+      Distance: 27.716678619384766
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -1143,17 +956,17 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 25.519744873046875
-        Y: 27.710411071777344
-        Z: -5.272935231914744e-05
+        X: 29.120424270629883
+        Y: 19.9029483795166
+        Z: -4.319260915508494e-05
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.9402028322219849
+      Pitch: 0.8397966027259827
       Target Frame: <Fixed Frame>
-      Yaw: 2.646714210510254
+      Yaw: 2.951711654663086
     Saved: ~
 Window Geometry:
   Displays:
@@ -1161,7 +974,7 @@ Window Geometry:
   Height: 2752
   Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000052100000a24fc020000000cfb0000001200530065006c0065006300740069006f006e000000004b0000009b000000b000fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df000002c10000027efb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000006e000004a50000018200fffffffb0000001800660062005f00640065006200750067005f0069006d0067010000051f000001710000002600fffffffb0000000c00430061006d00650072006100000007f1000001910000000000000000fb0000000a0049006d00610067006500000007c3000001bf0000000000000000fb0000000a0049006d00610067006500000008160000016c0000000000000000fb0000000a0049006d00610067006501000008260000026c0000000000000000fb0000000a0049006d006100670065010000072e000003640000000000000000fb00000012005700610076006500660072006f006e0074010000069c000003f60000002600ffffff000000010000015f00000a24fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e00000a240000013200fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004a00000003efc0100000002fb0000000800540069006d00650000000000000004a00000077d00fffffffb0000000800540069006d00650100000000000004500000000000000000000007fb00000a2400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002d000000a24fc020000000cfb0000001200530065006c0065006300740069006f006e000000004b0000009b000000b000fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df000002c10000027efb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000006e000004a50000018200fffffffb0000001800660062005f00640065006200750067005f0069006d0067010000051f000001710000002600fffffffb0000000c00430061006d00650072006100000007f1000001910000000000000000fb0000000a0049006d00610067006500000007c3000001bf0000000000000000fb0000000a0049006d00610067006500000008160000016c0000000000000000fb0000000a0049006d00610067006501000008260000026c0000000000000000fb0000000a0049006d006100670065010000072e000003640000000000000000fb00000012005700610076006500660072006f006e0074010000069c000003f60000002600ffffff000000010000015f00000a24fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000006e00000a240000013200fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004a00000003efc0100000002fb0000000800540069006d00650000000000000004a00000077d00fffffffb0000000800540069006d00650100000000000004500000000000000000000007cf00000a2400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -1172,8 +985,8 @@ Window Geometry:
     collapsed: true
   Wavefront:
     collapsed: false
-  Width: 3368
-  X: 6392
+  Width: 2731
+  X: 7029
   Y: 429
   fb_debug_img:
     collapsed: false

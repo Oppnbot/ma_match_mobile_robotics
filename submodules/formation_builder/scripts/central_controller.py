@@ -9,6 +9,7 @@ import time
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from path_finder import PathFinder
+from path_follower import PathFollower
 from formation_builder.msg import Formation, GoalPose, Trajectory
 from geometry_msgs.msg import Pose
 from visualization import fb_visualizer
@@ -36,9 +37,11 @@ class CentralController:
 
 
         self.path_finders : dict[int, PathFinder] = {id: PathFinder(id) for id in self.unique_mir_ids}
+        #self.path_followers:dict[int, PathFollower] = {id: PathFollower(id) for id in self.unique_mir_ids}
 
         self.formation_subscriber : rospy.Subscriber = rospy.Subscriber("/formation_builder/formation", Formation, self.build_formation)
         self.map_subscriber : rospy.Subscriber = rospy.Subscriber("formation_builder/map", Image, self.map_callback)
+        self.trajectory_publisher : rospy.Publisher = rospy.Publisher('formation_builder/trajectory', Trajectory, queue_size=10, latch=True)
 
         self.grid : np.ndarray | None = None
         self.cv_bridge : CvBridge = CvBridge()
@@ -68,7 +71,11 @@ class CentralController:
             if planned_trajectory is not None:
                 planned_trajectories.append(planned_trajectory)
 
+        
+
         rospy.loginfo(f"[CController] ------------ Planning done! ({time.time()-start_time:.3f}s) ------------ ")
+        for trajectory in planned_trajectories:
+            self.trajectory_publisher.publish(trajectory)
 
         fb_visualizer.show_live_path(planned_trajectories)
         end_time = time.time()
